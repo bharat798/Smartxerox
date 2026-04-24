@@ -48,7 +48,7 @@ window.filterQ = (f, btn) => {
 };
 
 // ==========================================
-// 2. AUTHENTICATION & SHOP DATA
+// 2. AUTHENTICATION & MULTI-PATH DATA FETCH
 // ==========================================
 onAuthStateChanged(auth, async (user) => {
     if (user) {
@@ -56,13 +56,26 @@ onAuthStateChanged(auth, async (user) => {
             const emailDisp = document.getElementById('shop-user-email');
             if(emailDisp) emailDisp.textContent = user.email || "Partner Account";
 
-            // 🟢 MANDATORY RULE 1: Fetching from strictly allowed path 🟢
-            // Path structure: artifacts/{appId}/users/{userId}/{collectionName}/{docId}
-            const userDocRef = doc(db, 'artifacts', appId, 'users', user.uid, 'profile', 'data');
-            const userDoc = await getDoc(userDocRef);
+            // 🟢 SMART PATH DETECTION 🟢
+            // Hum 3 alag paths par check karenge kyunki Admin panel ka path different ho sakta hai
+            const pathsToTry = [
+                doc(db, 'artifacts', appId, 'users', user.uid, 'profile', 'data'), // Path 1: Strict Rule 1
+                doc(db, 'artifacts', appId, 'users', user.uid),                  // Path 2: Flat Rule 1
+                doc(db, 'users', user.uid)                                       // Path 3: Root Level (Admin Default)
+            ];
+
+            let userData = null;
+            for (let docRef of pathsToTry) {
+                console.log("Checking profile at:", docRef.path);
+                const snap = await getDoc(docRef);
+                if (snap.exists()) {
+                    userData = snap.data();
+                    console.log("Profile found at:", docRef.path);
+                    break;
+                }
+            }
             
-            if (userDoc.exists()) {
-                const userData = userDoc.data();
+            if (userData && userData.shopId) {
                 currentShopId = userData.shopId;
                 
                 // Fetch public shop details (Strict Path: artifacts/{appId}/public/data/shops/{shopId})
@@ -78,18 +91,23 @@ onAuthStateChanged(auth, async (user) => {
                     generateShopQR();
                     startListeningToQueue();
                     loadShopAnalytics();
+                } else {
+                    // Fallback to manual ID if shop doc is missing but shopId exists
+                    document.getElementById('ui-shop-name').textContent = "Shop: " + currentShopId;
+                    document.getElementById('ui-shop-id').textContent = 'ID: ' + currentShopId;
+                    generateShopQR();
+                    startListeningToQueue();
+                    loadShopAnalytics();
                 }
             } else {
-                console.error("User profile not found in database at path:", userDocRef.path);
-                // Agar path mismatch hai toh console mein path dikhega taaki aap Firebase mein check kar sakein
-                document.getElementById('ui-shop-name').textContent = "Unauthorized Account";
-                window.showToast("Profile data not found. Check console.", "error");
+                console.error("User profile not found in any path for UID:", user.uid);
+                document.getElementById('ui-shop-name').textContent = "Account Error";
+                window.showToast("Profile missing in Database", "error");
             }
         } catch(e) { 
             console.error("Dashboard init error:", e); 
         }
     } else {
-        // Auth before queries: await signIn if not present
         if (typeof __initial_auth_token !== 'undefined' && __initial_auth_token) {
             await signInWithCustomToken(auth, __initial_auth_token);
         } else {
@@ -119,7 +137,8 @@ function generateShopQR() {
     const baseUrl = window.location.origin + currentPath.substring(0, currentPath.lastIndexOf('/') + 1);
     const shopUrl = `${baseUrl}customer.html?shop=${currentShopId}`;
     
-    document.getElementById('qr-link-text').textContent = shopUrl;
+    const linkText = document.getElementById('qr-link-text');
+    if(linkText) linkText.textContent = shopUrl;
     
     if (typeof window.QRCode !== 'undefined') {
         new window.QRCode(con, {
@@ -134,7 +153,9 @@ function generateShopQR() {
 }
 
 window.copyShopLink = () => {
-    const url = document.getElementById('qr-link-text').textContent;
+    const textEl = document.getElementById('qr-link-text');
+    if(!textEl) return;
+    const url = textEl.textContent;
     const el = document.createElement('textarea');
     el.value = url;
     document.body.appendChild(el);
@@ -148,7 +169,6 @@ window.copyShopLink = () => {
 // 4. QUEUE & RENDERING
 // ==========================================
 function startListeningToQueue() {
-    // RULE 1: Public data path
     const q = collection(db, 'artifacts', appId, 'public', 'data', 'prints');
     
     onSnapshot(q, (snapshot) => {
@@ -160,7 +180,6 @@ function startListeningToQueue() {
             const data = docSnap.data();
             data.id = docSnap.id;
             
-            // Memory filtering (Rule 2)
             if (data.shopId !== currentShopId) return;
 
             if (data.expiresAt && now > data.expiresAt) {
@@ -173,8 +192,10 @@ function startListeningToQueue() {
             if (data.status === 'Pending' || data.status === 'Printing') pendingCount++;
         });
 
-        document.getElementById('s-pending').textContent = pendingCount;
-        document.getElementById('s-total').textContent = allJobs.length;
+        const pendingDisp = document.getElementById('s-pending');
+        const totalDisp = document.getElementById('s-total');
+        if(pendingDisp) pendingDisp.textContent = pendingCount;
+        if(totalDisp) totalDisp.textContent = allJobs.length;
         
         const badge = document.getElementById('q-badge');
         if (badge) {
@@ -215,13 +236,13 @@ function buildCard(j) {
             <a href="${j.fileUrl}" target="_blank" class="text-[10px] font-black text-blue-600 bg-blue-100 px-3 py-2 rounded-xl uppercase hover:bg-blue-200 transition-colors">Open</a>
         </div>
 
-        ${j.settings.notes ? `<div class="mb-4 text-[11px] bg-amber-50 p-3 rounded-xl text-amber-700 italic border border-amber-100">Note: ${j.settings.notes}</div>` : ''}
+        ${j.settings.notes ? `<div class="mb-4 text-[11px] bg-amber-50 p-3 rounded-xl text-amber-700 italic border border-amber-100 flex gap-2"><i data-lucide="info" class="w-3 h-3 shrink-0 mt-0.5"></i> <span>Note: ${j.settings.notes}</span></div>` : ''}
 
         <div class="flex gap-2">
             ${!isDone ? 
                 (j.status === 'Pending' ? 
-                    `<button onclick="window.updateJobStatus('${j.id}', 'Printing')" class="flex-1 bg-blue-600 text-white text-xs font-black py-3 rounded-xl shadow-lg active:scale-95 transition-all">Start Printing</button>` : 
-                    `<button onclick="window.markJobAsDone('${j.id}')" class="flex-1 bg-emerald-600 text-white text-xs font-black py-3 rounded-xl shadow-lg active:scale-95 transition-all">Complete</button>`) 
+                    `<button onclick="window.updateJobStatus('${j.id}', 'Printing')" class="flex-1 bg-blue-600 hover:bg-blue-700 text-white text-xs font-black py-3 rounded-xl shadow-lg transition-all active:scale-95">Start Printing</button>` : 
+                    `<button onclick="window.markJobAsDone('${j.id}')" class="flex-1 bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-black py-3 rounded-xl shadow-lg active:scale-95">Complete</button>`) 
                 : `<div class="flex-1 text-center py-2 text-emerald-600 font-black text-xs uppercase bg-emerald-50 rounded-xl border border-emerald-100">Printed ✓</div>`
             }
             <button onclick="window.askDelete('${j.id}', '${j.filePath}')" class="p-3 text-slate-400 hover:text-red-600 transition-colors"><i data-lucide="trash-2" class="w-5 h-5"></i></button>
@@ -233,7 +254,7 @@ function renderQueue() {
     const qc = document.getElementById('queue-cards');
     if (!qc) return;
     const filtered = allJobs.filter(j => j.status !== 'Done' && (qFilter === 'all' || j.status === qFilter));
-    qc.innerHTML = filtered.length ? filtered.map(j => buildCard(j)).join('') : `<div class="col-span-full py-10 text-center"><p class="text-sm font-bold text-slate-400 uppercase tracking-widest text-xs">Queue is Empty</p></div>`;
+    qc.innerHTML = filtered.length ? filtered.map(j => buildCard(j)).join('') : `<div class="col-span-full py-20 text-center"><p class="text-sm font-bold text-slate-400 uppercase tracking-widest text-xs">Queue is Empty</p></div>`;
     if (window.lucide) window.lucide.createIcons();
 }
 
@@ -241,7 +262,7 @@ function renderDone() {
     const dc = document.getElementById('done-cards');
     if (!dc) return;
     const filtered = allJobs.filter(j => j.status === 'Done');
-    dc.innerHTML = filtered.length ? filtered.map(j => buildCard(j)).join('') : `<div class="col-span-full py-10 text-center"><p class="text-sm font-bold text-slate-400 uppercase tracking-widest text-xs">No History Found</p></div>`;
+    dc.innerHTML = filtered.length ? filtered.map(j => buildCard(j)).join('') : `<div class="col-span-full py-20 text-center"><p class="text-sm font-bold text-slate-400 uppercase tracking-widest text-xs">No History Found</p></div>`;
     if (window.lucide) window.lucide.createIcons();
 }
 
@@ -259,7 +280,7 @@ window.markJobAsDone = async (id) => {
 
     await updateDoc(doc(db, 'artifacts', appId, 'public', 'data', 'prints', id), { status: 'Done' });
     
-    // Revenue Ledger Logic (Daily Records in public path)
+    // Revenue Ledger Logic
     const today = new Date().toISOString().split('T')[0];
     const statRef = doc(db, 'artifacts', appId, 'public', 'data', 'shop_analytics', `${currentShopId}_${today}`);
     const amount = Number(job.billEstimate) || 0;
@@ -268,13 +289,7 @@ window.markJobAsDone = async (id) => {
     if (statSnap.exists()) {
         await updateDoc(statRef, { revenue: increment(amount), totalTokens: increment(1) });
     } else {
-        await setDoc(statRef, { 
-            shopId: currentShopId, 
-            date: today, 
-            revenue: amount, 
-            totalTokens: 1, 
-            timestamp: Date.now() 
-        });
+        await setDoc(statRef, { shopId: currentShopId, date: today, revenue: amount, totalTokens: 1, timestamp: Date.now() });
     }
     window.showToast("Job Done & Revenue Added!", "success");
 };
@@ -294,18 +309,21 @@ window.closeConfirm = () => {
     deleteContext = null;
 };
 
-document.getElementById('btn-confirm-delete').onclick = async () => {
-    if (!deleteContext) return;
-    const { id, path } = deleteContext;
-    try {
-        if (path && path !== 'undefined') {
-            await deleteObject(ref(storage, path)).catch(() => console.warn('Storage file missing'));
-        }
-        await deleteDoc(doc(db, 'artifacts', appId, 'public', 'data', 'prints', id));
-        window.showToast("Deleted Forever", "info");
-    } catch(e) { console.error(e); }
-    window.closeConfirm();
-};
+const confirmDeleteBtn = document.getElementById('btn-confirm-delete');
+if (confirmDeleteBtn) {
+    confirmDeleteBtn.onclick = async () => {
+        if (!deleteContext) return;
+        const { id, path } = deleteContext;
+        try {
+            if (path && path !== 'undefined') {
+                await deleteObject(ref(storage, path)).catch(() => {});
+            }
+            await deleteDoc(doc(db, 'artifacts', appId, 'public', 'data', 'prints', id));
+            window.showToast("Deleted Forever", "info");
+        } catch(e) { console.error(e); }
+        window.closeConfirm();
+    };
+}
 
 // ==========================================
 // 7. ANALYTICS LOADER
@@ -328,13 +346,9 @@ function loadShopAnalytics() {
             logs.push(data);
         });
 
-        const earnTotal = document.getElementById('stat-earn-total');
-        const earnToday = document.getElementById('stat-earn-today');
-        const tokensToday = document.getElementById('stat-tokens-today');
-
-        if(earnTotal) earnTotal.textContent = totalRev;
-        if(earnToday) earnToday.textContent = todayRev;
-        if(tokensToday) tokensToday.textContent = todayTok;
+        if(document.getElementById('stat-earn-total')) document.getElementById('stat-earn-total').textContent = totalRev;
+        if(document.getElementById('stat-earn-today')) document.getElementById('stat-earn-today').textContent = todayRev;
+        if(document.getElementById('stat-tokens-today')) document.getElementById('stat-tokens-today').textContent = todayTok;
 
         logs.sort((a, b) => b.date.localeCompare(a.date));
         const tbody = document.getElementById('daily-revenue-table');
@@ -360,7 +374,7 @@ window.toggleSound = () => {
         btn.innerHTML = soundEnabled ? '<i data-lucide="bell" class="w-5 h-5"></i>' : '<i data-lucide="bell-off" class="w-5 h-5 text-red-400"></i>';
         if (window.lucide) window.lucide.createIcons();
     }
-    window.showToast(soundEnabled ? "Notifications On" : "Sound Muted");
+    window.showToast(soundEnabled ? "Notifications Sound On" : "Sound Muted");
 };
 
 function playAlertSound() {
@@ -382,11 +396,11 @@ window.showToast = (msg, type = 'info') => {
     if (msgEl) msgEl.textContent = msg;
     if (icon) {
         if (type === 'success') { 
-            icon.setAttribute('data-lucide', 'check-circle'); 
-            icon.className = 'w-5 h-5 text-emerald-400'; 
+            icon.setAttribute('class', 'w-5 h-5 text-emerald-400'); 
+            icon.setAttribute('data-lucide', 'check-circle');
         } else { 
-            icon.setAttribute('data-lucide', 'info'); 
-            icon.className = 'w-5 h-5 text-blue-400'; 
+            icon.setAttribute('class', 'w-5 h-5 text-blue-400'); 
+            icon.setAttribute('data-lucide', 'info');
         }
     }
     
@@ -395,8 +409,10 @@ window.showToast = (msg, type = 'info') => {
         t.classList.remove('opacity-0', '-translate-y-4', 'pointer-events-none');
         t.classList.add('opacity-100', 'translate-y-0');
         setTimeout(() => {
-            t.classList.remove('opacity-100', 'translate-y-0');
-            t.classList.add('opacity-0', '-translate-y-4', 'pointer-events-none');
+            if(t) {
+                t.classList.remove('opacity-100', 'translate-y-0');
+                t.classList.add('opacity-0', '-translate-y-4', 'pointer-events-none');
+            }
         }, 3000);
     }
 };
