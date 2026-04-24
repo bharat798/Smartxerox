@@ -281,9 +281,6 @@ btnSubmit.onclick = async () => {
     }
 };
 
-// ==========================================
-// 5. Recovery & Reset
-// ==========================================
 function checkPreviousOrder() {
     const saved = localStorage.getItem('smartXerox_lastOrder');
     if (saved) {
