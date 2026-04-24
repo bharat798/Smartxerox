@@ -92,13 +92,19 @@ function generateShopQR() {
         const shopUrl = `${getBaseUrl()}/customer.html?shop=${currentShopId}`;
         document.getElementById('qr-link-text').textContent = shopUrl;
         
-        new QRCode(qrContainer, {
+        // FIXED QR BUG: Checking window.QRCode
+        if (typeof window.QRCode === 'undefined') {
+            qrContainer.innerHTML = "<span class='text-xs text-red-500'>QR Load Error. Refresh page.</span>";
+            return;
+        }
+
+        new window.QRCode(qrContainer, {
             text: shopUrl,
             width: 176,
             height: 176,
             colorDark : "#0f172a",
             colorLight : "#ffffff",
-            correctLevel : QRCode.CorrectLevel.H
+            correctLevel : window.QRCode.CorrectLevel.H
         });
     }
 }
@@ -129,7 +135,7 @@ function startListeningToQueue() {
             const data = docSnap.data();
             data.id = docSnap.id;
             
-            // 🟢 AUTO-DELETE LOGIC (Storage + Database) 🟢
+            // AUTO-DELETE LOGIC (Storage + Database)
             if (data.expiresAt && now > data.expiresAt) {
                 // Delete from Firebase Storage securely
                 if (data.filePath) {
@@ -316,7 +322,7 @@ window.markDone = async (id) => {
         await updateDoc(doc(db, "prints", id), { status: "Done" });
         showToast("Document marked as done!", 'success');
         
-        // 🟢 SAVE REVENUE TO ANALYTICS DATABASE (Permanent Record) 🟢
+        // SAVE REVENUE TO ANALYTICS DATABASE (Permanent Record)
         if (job) {
             const todayStr = new Date().toISOString().split('T')[0]; // Format: YYYY-MM-DD
             const statRef = doc(db, "shop_analytics", `${currentShopId}_${todayStr}`);
@@ -344,7 +350,7 @@ window.markDone = async (id) => {
     } catch(e) { console.error(e); }
 }
 
-// 🟢 LOAD SHOP ANALYTICS (Day-to-day Earnings) 🟢
+// LOAD SHOP ANALYTICS (Day-to-day Earnings)
 function loadShopAnalytics() {
     const q = query(collection(db, "shop_analytics"), where("shopId", "==", currentShopId));
     
@@ -397,15 +403,15 @@ function loadShopAnalytics() {
     });
 }
 
-// 🟢 MANUAL DELETE (Deletes from Storage AND Firestore securely) 🟢
+// MANUAL DELETE (Deletes from Storage AND Firestore securely)
 window.deleteJob = async (id, filePath) => {
     if(confirm("Are you sure you want to permanently delete this document?")) {
         try {
-            // 1. Delete from Firebase Storage (If it exists)
+            // Delete from Firebase Storage (If it exists)
             if(filePath && filePath !== 'undefined') {
                 await deleteObject(ref(storage, filePath)).catch(e => console.log('File might already be deleted from storage'));
             }
-            // 2. Delete from Database
+            // Delete from Database
             await deleteDoc(doc(db, "prints", id));
             showToast("Document deleted securely.", 'success');
         } catch(e) { 
@@ -415,7 +421,7 @@ window.deleteJob = async (id, filePath) => {
     }
 }
 
-// 🟢 CUSTOM AUTO-DELETE TIMER 🟢
+// CUSTOM AUTO-DELETE TIMER
 window.setCustomExpiry = async (id) => {
     const hours = prompt("Enter the number of hours to keep this file before Auto-Delete (e.g., 10):", "10");
     
