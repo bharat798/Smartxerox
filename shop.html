@@ -6,37 +6,31 @@
     <title>Smart Xerox | Shop Dashboard</title>
     <!-- Tailwind CSS -->
     <script src="https://cdn.tailwindcss.com"></script>
-    <!-- Lucide Icons for Professional UI -->
+    <!-- Lucide Icons -->
     <script src="https://unpkg.com/lucide@latest"></script>
-    <!-- Real QR Code Library -->
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
+    <!-- 🟢 FIXED: Updated QR Code Library CDN 🟢 -->
+    <script src="https://cdn.jsdelivr.net/gh/davidshimjs/qrcodejs/qrcode.min.js"></script>
     <style>
         @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap');
         body { font-family: 'Inter', sans-serif; background-color: #f8fafc; }
         
-        /* Custom Scrollbar */
         ::-webkit-scrollbar { width: 6px; height: 6px; }
         ::-webkit-scrollbar-track { background: transparent; }
         ::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 10px; }
         ::-webkit-scrollbar-thumb:hover { background: #94a3b8; }
 
-        /* Animations */
         @keyframes slideIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
         .animate-slide-in { animation: slideIn 0.3s ease-out forwards; }
 
-        /* Hide views by default */
         .view-section { display: none; }
         .view-section.active { display: block; animation: slideIn 0.3s ease-out; }
     </style>
 </head>
 <body class="text-slate-800 h-screen flex overflow-hidden">
 
-    <!-- Mobile Sidebar Overlay -->
     <div id="mobile-overlay" class="fixed inset-0 bg-slate-900/50 z-20 hidden md:hidden" onclick="toggleSidebar()"></div>
 
-    <!-- Sidebar -->
     <aside id="sidebar" class="bg-slate-900 text-slate-300 w-64 flex-shrink-0 flex flex-col h-full fixed md:relative z-30 transition-transform duration-300 -translate-x-full md:translate-x-0 shadow-xl">
-        <!-- Logo Area -->
         <div class="h-16 flex items-center px-6 border-b border-white/10 text-white font-bold text-lg gap-2">
             <i data-lucide="printer" class="w-6 h-6 text-blue-400"></i>
             Shop<span class="text-blue-400">Panel</span>
@@ -45,40 +39,33 @@
             </button>
         </div>
 
-        <!-- Navigation -->
         <nav class="flex-1 overflow-y-auto py-4">
             <ul class="space-y-1 px-3">
                 <li>
                     <button onclick="switchView('queue', this)" class="nav-item w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-colors bg-blue-500/10 text-white border-l-2 border-blue-500 hover:bg-white/5 active-nav">
-                        <i data-lucide="list-todo" class="w-5 h-5"></i>
-                        Print Queue
+                        <i data-lucide="list-todo" class="w-5 h-5"></i> Print Queue
                         <span id="q-badge" class="ml-auto bg-blue-500 text-white text-xs font-bold px-2 py-0.5 rounded-full" style="display:none;">0</span>
                     </button>
                 </li>
                 <li>
                     <button onclick="switchView('done', this)" class="nav-item w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-colors hover:bg-white/5 border-l-2 border-transparent hover:text-white">
-                        <i data-lucide="check-circle" class="w-5 h-5"></i>
-                        Completed Jobs
+                        <i data-lucide="check-circle" class="w-5 h-5"></i> Completed Jobs
                     </button>
                 </li>
                 <li>
                     <button onclick="switchView('qr', this)" class="nav-item w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-colors hover:bg-white/5 border-l-2 border-transparent hover:text-white">
-                        <i data-lucide="qr-code" class="w-5 h-5"></i>
-                        Shop QR Code
+                        <i data-lucide="qr-code" class="w-5 h-5"></i> Shop QR Code
                     </button>
                 </li>
                 <li>
                     <button onclick="switchView('analytics', this)" class="nav-item w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-colors hover:bg-white/5 border-l-2 border-transparent hover:text-white">
-                        <i data-lucide="bar-chart-2" class="w-5 h-5"></i>
-                        Business Analytics
+                        <i data-lucide="bar-chart-2" class="w-5 h-5"></i> Business Analytics
                     </button>
                 </li>
             </ul>
         </nav>
 
-        <!-- Footer / Profile -->
         <div class="p-4 border-t border-white/10">
-            <!-- 🟢 NEW: Real Email & Name Display 🟢 -->
             <div class="flex items-center gap-3 mb-4 px-2">
                 <div class="w-10 h-10 rounded-full bg-blue-500 flex items-center justify-center text-white font-bold shadow-inner shrink-0">
                     <i data-lucide="user" class="w-5 h-5"></i>
@@ -88,18 +75,13 @@
                     <p id="shop-user-email" class="text-[11px] text-slate-400 truncate">Loading...</p>
                 </div>
             </div>
-
             <button id="btn-logout" class="w-full flex items-center justify-center gap-2 px-4 py-2 bg-white/5 hover:bg-white/10 text-sm font-medium rounded-lg transition-colors border border-white/10 text-slate-300 hover:text-white">
-                <i data-lucide="log-out" class="w-4 h-4"></i>
-                Sign Out
+                <i data-lucide="log-out" class="w-4 h-4"></i> Sign Out
             </button>
         </div>
     </aside>
 
-    <!-- Main Content -->
     <main class="flex-1 flex flex-col h-full overflow-hidden relative">
-        
-        <!-- Topbar -->
         <header class="h-16 bg-white border-b border-slate-200 flex items-center justify-between px-4 sm:px-6 z-10 shadow-sm">
             <div class="flex items-center gap-3">
                 <button class="md:hidden text-slate-500 hover:text-slate-800" onclick="toggleSidebar()">
@@ -110,14 +92,12 @@
                     <p class="text-xs text-slate-500 font-medium" id="ui-shop-id">ID: ...</p>
                 </div>
             </div>
-
             <div class="flex items-center gap-2 sm:gap-4">
                 <div class="hidden sm:flex items-center gap-2 bg-emerald-50 text-emerald-700 px-3 py-1 rounded-full border border-emerald-200 text-xs font-semibold">
                     <span class="relative flex h-2 w-2">
                       <span class="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
                       <span class="relative inline-flex rounded-full h-2 w-2 bg-emerald-500"></span>
-                    </span>
-                    Live Data
+                    </span> Live Data
                 </div>
                 <button id="btn-sound" class="p-2 text-slate-400 hover:text-blue-600 hover:bg-blue-50 rounded-full transition-colors" title="Toggle Sound Notifications">
                     <i data-lucide="bell" class="w-5 h-5"></i>
@@ -125,13 +105,9 @@
             </div>
         </header>
 
-        <!-- Scrollable Area -->
         <div class="flex-1 overflow-y-auto p-4 sm:p-6 lg:p-8 bg-slate-50">
             
-            <!-- VIEW: PRINT QUEUE -->
             <div id="view-queue" class="view-section active">
-                
-                <!-- Quick Stats (Moved to Queue View for better context) -->
                 <div class="grid grid-cols-2 md:grid-cols-3 gap-4 mb-6">
                     <div class="bg-white p-4 rounded-xl shadow-sm border border-slate-200 flex items-center gap-4">
                         <div class="w-12 h-12 rounded-full bg-yellow-50 text-yellow-600 flex items-center justify-center shrink-0"><i data-lucide="clock" class="w-6 h-6"></i></div>
@@ -156,7 +132,6 @@
                     </div>
                 </div>
 
-                <!-- Live Queue Container -->
                 <div id="queue-cards" class="space-y-4">
                     <div class="text-center py-12 bg-white rounded-xl border border-slate-200 border-dashed">
                         <div class="w-16 h-16 bg-slate-50 rounded-full flex items-center justify-center mx-auto mb-3">
@@ -167,13 +142,11 @@
                 </div>
             </div>
 
-            <!-- VIEW: COMPLETED -->
             <div id="view-done" class="view-section">
                 <div class="mb-6"><h2 class="text-xl font-bold text-slate-800">Completed Documents</h2></div>
                 <div id="done-cards" class="space-y-4"></div>
             </div>
 
-            <!-- VIEW: QR CODE -->
             <div id="view-qr" class="view-section">
                 <div class="max-w-md mx-auto mt-10 bg-white rounded-2xl shadow-sm border border-slate-200 p-8 text-center">
                     <div class="w-16 h-16 bg-blue-100 text-blue-600 rounded-full flex items-center justify-center mx-auto mb-4">
@@ -201,16 +174,13 @@
                 </div>
             </div>
 
-            <!-- 🟢 NEW VIEW: BUSINESS ANALYTICS & EARNINGS 🟢 -->
             <div id="view-analytics" class="view-section">
                 <div class="mb-6">
                     <h2 class="text-xl font-bold text-slate-800">Business Analytics</h2>
                     <p class="text-sm text-slate-500">Track your daily and total revenue securely.</p>
                 </div>
                 
-                <!-- Revenue Highlights -->
                 <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
-                    <!-- Today's Earning (Green Highlight) -->
                     <div class="bg-gradient-to-br from-emerald-500 to-emerald-600 rounded-xl shadow-md border border-emerald-400 p-6 text-white relative overflow-hidden">
                         <div class="absolute -right-4 -bottom-4 opacity-20"><i data-lucide="indian-rupee" class="w-24 h-24"></i></div>
                         <div class="text-sm font-bold text-emerald-100 mb-1 relative z-10 uppercase tracking-wider">Today's Revenue</div>
@@ -228,7 +198,6 @@
                     </div>
                 </div>
 
-                <!-- Daily Revenue Ledger Table -->
                 <div class="bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden">
                     <div class="px-6 py-4 border-b border-slate-100 flex items-center justify-between">
                         <h3 class="font-bold text-slate-800 flex items-center gap-2"><i data-lucide="calendar-days" class="w-5 h-5 text-blue-600"></i> Day-to-Day Earning Record</h3>
@@ -253,8 +222,7 @@
         </div>
     </main>
 
-    <!-- Global Toast Notification -->
-    <div id="toast" class="fixed top-6 left-1/2 -translate-x-1/2 z-50 flex items-center gap-2 bg-slate-900 text-white px-5 py-3 rounded-full shadow-xl text-sm font-medium transition-all duration-300 opacity-0 pointer-events-none -translate-y-4">
+    <div id="toast" class="fixed bottom-6 right-6 z-50 flex items-center gap-2 bg-slate-900 text-white px-5 py-3 rounded-full shadow-xl text-sm font-medium transition-all duration-300 opacity-0 pointer-events-none -translate-y-4">
         <i id="toast-icon" data-lucide="info" class="w-4 h-4 text-blue-400"></i>
         <span id="toast-msg">Notification</span>
     </div>
