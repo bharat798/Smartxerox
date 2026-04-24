@@ -1,6 +1,6 @@
 // Firebase services ko aapki init file se import kar rahe hain
 import { auth, db, storage } from './firebase-init.js';
-import { onAuthStateChanged, signOut, signInAnonymously } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-auth.js";
+import { onAuthStateChanged, signOut, signInAnonymously, signInWithCustomToken } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-auth.js";
 import { doc, getDoc, setDoc, collection, query, onSnapshot, updateDoc, deleteDoc, increment } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js";
 import { ref, deleteObject } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-storage.js";
 
@@ -16,7 +16,6 @@ let deleteContext = null;
 // ==========================================
 // 1. UI NAVIGATION & SIDEBAR (Window Scope)
 // ==========================================
-// Inhe window se attach kiya hai taaki HTML onclick inhe dhoond sake
 window.switchView = (name, el) => {
     document.querySelectorAll('.view-section').forEach(v => v.classList.remove('active'));
     document.querySelectorAll('.nav-item').forEach(n => n.classList.remove('active-nav'));
@@ -54,19 +53,19 @@ window.filterQ = (f, btn) => {
 onAuthStateChanged(auth, async (user) => {
     if (user) {
         try {
-            // Sidebar mein email set karein
             const emailDisp = document.getElementById('shop-user-email');
             if(emailDisp) emailDisp.textContent = user.email || "Partner Account";
 
-            // RULE 1: Pehle user profile se shopId fetch karein
-            const userDocRef = doc(db, 'artifacts', appId, 'users', user.uid);
+            // 🟢 MANDATORY RULE 1: Fetching from strictly allowed path 🟢
+            // Path structure: artifacts/{appId}/users/{userId}/{collectionName}/{docId}
+            const userDocRef = doc(db, 'artifacts', appId, 'users', user.uid, 'profile', 'data');
             const userDoc = await getDoc(userDocRef);
             
             if (userDoc.exists()) {
                 const userData = userDoc.data();
                 currentShopId = userData.shopId;
                 
-                // Shop details fetch karein (Name, Owner, etc.)
+                // Fetch public shop details (Strict Path: artifacts/{appId}/public/data/shops/{shopId})
                 const shopDocRef = doc(db, 'artifacts', appId, 'public', 'data', 'shops', currentShopId);
                 const shopDoc = await getDoc(shopDocRef);
                 
@@ -76,25 +75,29 @@ onAuthStateChanged(auth, async (user) => {
                     document.getElementById('shop-owner-name').textContent = shopData.ownerName || "Shop Owner";
                     document.getElementById('ui-shop-id').textContent = 'ID: ' + currentShopId;
                     
-                    // Sab kuch sahi hai, ab dashboard activate karein
                     generateShopQR();
                     startListeningToQueue();
                     loadShopAnalytics();
                 }
             } else {
-                console.error("User profile not found in database.");
+                console.error("User profile not found in database at path:", userDocRef.path);
+                // Agar path mismatch hai toh console mein path dikhega taaki aap Firebase mein check kar sakein
                 document.getElementById('ui-shop-name').textContent = "Unauthorized Account";
+                window.showToast("Profile data not found. Check console.", "error");
             }
         } catch(e) { 
             console.error("Dashboard init error:", e); 
         }
     } else {
-        // Agar user logged in nahi hai toh login page par bhejein
-        window.location.href = "index.html";
+        // Auth before queries: await signIn if not present
+        if (typeof __initial_auth_token !== 'undefined' && __initial_auth_token) {
+            await signInWithCustomToken(auth, __initial_auth_token);
+        } else {
+            await signInAnonymously(auth);
+        }
     }
 });
 
-// Logout Button logic
 const logoutBtn = document.getElementById('btn-logout');
 if (logoutBtn) {
     logoutBtn.onclick = () => {
@@ -112,7 +115,6 @@ function generateShopQR() {
     if (!con || !currentShopId) return;
     con.innerHTML = "";
     
-    // Automatic URL detection (VS Code ya GitHub ke liye)
     const currentPath = window.location.pathname;
     const baseUrl = window.location.origin + currentPath.substring(0, currentPath.lastIndexOf('/') + 1);
     const shopUrl = `${baseUrl}customer.html?shop=${currentShopId}`;
@@ -146,7 +148,7 @@ window.copyShopLink = () => {
 // 4. QUEUE & RENDERING
 // ==========================================
 function startListeningToQueue() {
-    // RULE 1: Fetch documents for this shop
+    // RULE 1: Public data path
     const q = collection(db, 'artifacts', appId, 'public', 'data', 'prints');
     
     onSnapshot(q, (snapshot) => {
@@ -158,10 +160,9 @@ function startListeningToQueue() {
             const data = docSnap.data();
             data.id = docSnap.id;
             
-            // Memory filtering
+            // Memory filtering (Rule 2)
             if (data.shopId !== currentShopId) return;
 
-            // Auto-delete implementation
             if (data.expiresAt && now > data.expiresAt) {
                 if (data.filePath) deleteObject(ref(storage, data.filePath)).catch(() => {});
                 deleteDoc(doc(db, 'artifacts', appId, 'public', 'data', 'prints', data.id));
@@ -187,6 +188,8 @@ function startListeningToQueue() {
         allJobs.sort((a, b) => b.createdAt - a.createdAt);
         renderQueue();
         renderDone();
+    }, (err) => {
+        console.error("Firestore error:", err);
     });
 }
 
@@ -209,7 +212,7 @@ function buildCard(j) {
                 <p class="text-sm font-bold text-slate-700 truncate">${j.fileName}</p>
                 <p class="text-[10px] font-bold text-slate-400 uppercase tracking-tighter">${j.settings.colorMode} • ${j.settings.paperSize} • ${j.settings.copies} sets</p>
             </div>
-            <a href="${j.fileUrl}" target="_blank" class="text-[10px] font-black text-blue-600 bg-blue-100 px-3 py-2 rounded-xl uppercase">Open</a>
+            <a href="${j.fileUrl}" target="_blank" class="text-[10px] font-black text-blue-600 bg-blue-100 px-3 py-2 rounded-xl uppercase hover:bg-blue-200 transition-colors">Open</a>
         </div>
 
         ${j.settings.notes ? `<div class="mb-4 text-[11px] bg-amber-50 p-3 rounded-xl text-amber-700 italic border border-amber-100">Note: ${j.settings.notes}</div>` : ''}
@@ -217,8 +220,8 @@ function buildCard(j) {
         <div class="flex gap-2">
             ${!isDone ? 
                 (j.status === 'Pending' ? 
-                    `<button onclick="window.updateJobStatus('${j.id}', 'Printing')" class="flex-1 bg-blue-600 text-white text-xs font-black py-3 rounded-xl shadow-lg active:scale-95">Start Printing</button>` : 
-                    `<button onclick="window.markJobAsDone('${j.id}')" class="flex-1 bg-emerald-600 text-white text-xs font-black py-3 rounded-xl shadow-lg active:scale-95">Mark Done</button>`) 
+                    `<button onclick="window.updateJobStatus('${j.id}', 'Printing')" class="flex-1 bg-blue-600 text-white text-xs font-black py-3 rounded-xl shadow-lg active:scale-95 transition-all">Start Printing</button>` : 
+                    `<button onclick="window.markJobAsDone('${j.id}')" class="flex-1 bg-emerald-600 text-white text-xs font-black py-3 rounded-xl shadow-lg active:scale-95 transition-all">Complete</button>`) 
                 : `<div class="flex-1 text-center py-2 text-emerald-600 font-black text-xs uppercase bg-emerald-50 rounded-xl border border-emerald-100">Printed ✓</div>`
             }
             <button onclick="window.askDelete('${j.id}', '${j.filePath}')" class="p-3 text-slate-400 hover:text-red-600 transition-colors"><i data-lucide="trash-2" class="w-5 h-5"></i></button>
@@ -256,7 +259,7 @@ window.markJobAsDone = async (id) => {
 
     await updateDoc(doc(db, 'artifacts', appId, 'public', 'data', 'prints', id), { status: 'Done' });
     
-    // Revenue Ledger Logic (Daily Records)
+    // Revenue Ledger Logic (Daily Records in public path)
     const today = new Date().toISOString().split('T')[0];
     const statRef = doc(db, 'artifacts', appId, 'public', 'data', 'shop_analytics', `${currentShopId}_${today}`);
     const amount = Number(job.billEstimate) || 0;
@@ -344,11 +347,11 @@ function loadShopAnalytics() {
                 </tr>
             `).join('');
         }
-    });
+    }, (err) => { console.error(err); });
 }
 
 // ==========================================
-// 8. UTILITIES (Sound & Toast)
+// 8. UTILITIES
 // ==========================================
 window.toggleSound = () => {
     soundEnabled = !soundEnabled;
@@ -357,7 +360,7 @@ window.toggleSound = () => {
         btn.innerHTML = soundEnabled ? '<i data-lucide="bell" class="w-5 h-5"></i>' : '<i data-lucide="bell-off" class="w-5 h-5 text-red-400"></i>';
         if (window.lucide) window.lucide.createIcons();
     }
-    window.showToast(soundEnabled ? "Notifications Sound On" : "Sound Muted");
+    window.showToast(soundEnabled ? "Notifications On" : "Sound Muted");
 };
 
 function playAlertSound() {
@@ -398,5 +401,4 @@ window.showToast = (msg, type = 'info') => {
     }
 };
 
-// First time Lucide Init
 if (window.lucide) window.lucide.createIcons();
