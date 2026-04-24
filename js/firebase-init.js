@@ -3,10 +3,6 @@ import { getAuth } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-auth
 import { getFirestore } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js";
 import { getStorage } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-storage.js";
 
-// ============================================================
-// 🔴 IMPORTANT: Replace the placeholders below with your 
-// actual Firebase Project keys from Firebase Console 🔴
-// ============================================================
 const firebaseConfig = {
   apiKey: "AIzaSyAMo83w6y7efkb4uNp6vn0neYjaHGbDiCc",
   authDomain: "smart-xerox-351eb.firebaseapp.com",
@@ -16,18 +12,16 @@ const firebaseConfig = {
   appId: "1:132259843591:web:5a1f695f02938b0d6e64a2"
 };
 
-// Initialize Firebase App
+// Initialize
 const app = initializeApp(firebaseConfig);
-
-// Initialize and Export Services
 export const auth = getAuth(app);
 export const db = getFirestore(app);
-export const storage = getStorage(app); 
+export const storage = getStorage(app);
 
-// Secondary App & Auth: This is used ONLY in Admin Panel 
-// to create Shop accounts without logging out the Admin.
+// Taaki bina module wali files bhi ise use kar sakein
+window.auth = auth;
+window.db = db;
+window.storage = storage;
+
 const secondaryApp = initializeApp(firebaseConfig, "Secondary");
 export const secondaryAuth = getAuth(secondaryApp);
-
-// This ensures global access if some scripts expect a global variable
-window.firebaseConfig = firebaseConfig;
