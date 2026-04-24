@@ -1,27 +1,11 @@
-import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
-import { getAuth, onAuthStateChanged, signOut, signInWithCustomToken, signInAnonymously } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
-import { getFirestore, doc, getDoc, setDoc, collection, query, where, onSnapshot, updateDoc, deleteDoc, increment } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
-import { getStorage, ref, deleteObject } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-storage.js";
+// Import Services from your existing firebase-init.js
+import { auth, db, storage } from './firebase-init.js';
+import { onAuthStateChanged, signOut, signInWithCustomToken, signInAnonymously } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-auth.js";
+import { doc, getDoc, setDoc, collection, query, where, onSnapshot, updateDoc, deleteDoc, increment } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js";
+import { ref, deleteObject } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-storage.js";
 
-// --- Global Environment Handling ---
-let firebaseConfig = {};
-try {
-    if (typeof __firebase_config !== 'undefined') {
-        firebaseConfig = JSON.parse(__firebase_config);
-    }
-} catch (e) {
-    console.error("Config Parsing Error:", e);
-}
-
+// --- Global Setup ---
 const appId = typeof __app_id !== 'undefined' ? __app_id : 'default-app-id';
-
-// Initialize Firebase
-const app = initializeApp(firebaseConfig);
-const auth = getAuth(app);
-const db = getFirestore(app);
-const storage = getStorage(app);
-
-// Global Variables
 let currentShopId = null;
 let soundEnabled = true;
 let previousPendingCount = 0;
@@ -30,25 +14,17 @@ let allJobs = [];
 let deleteContext = null; 
 
 // ==========================================
-// 1. UI Navigation & Helpers (Attached to window for HTML access)
+// 1. UI Navigation & Helpers (Attached to window)
 // ==========================================
 window.switchView = (name, el) => {
-    // Hide all sections
     document.querySelectorAll('.view-section').forEach(v => v.classList.remove('active'));
-    // Remove active class from all nav items
     document.querySelectorAll('.nav-item').forEach(n => n.classList.remove('active-nav'));
     
-    // Show target section
     const target = document.getElementById('view-' + name);
     if (target) target.classList.add('active');
-    
-    // Highlight clicked button
     if (el) el.classList.add('active-nav');
     
-    // Close sidebar on mobile
     if (window.innerWidth < 768) window.toggleSidebar();
-    
-    // Refresh icons
     if (window.lucide) window.lucide.createIcons();
 };
 
@@ -81,7 +57,7 @@ const initAuth = async () => {
         } else {
             await signInAnonymously(auth);
         }
-    } catch (e) { console.error("Auth failed", e); }
+    } catch (e) { console.error("Auth failed:", e); }
 };
 
 onAuthStateChanged(auth, async (user) => {
@@ -89,14 +65,14 @@ onAuthStateChanged(auth, async (user) => {
         try {
             document.getElementById('shop-user-email').textContent = user.email || "Partner Account";
 
-            // Fetch User Role and Shop ID
+            // RULE 1 Path: artifacts/{appId}/users/{userId}
+            // Pehle users collection se shopId nikalein
             const userDoc = await getDoc(doc(db, 'artifacts', appId, 'users', user.uid));
             
             if (userDoc.exists()) {
-                const userData = userDoc.data();
-                currentShopId = userData.shopId;
+                currentShopId = userDoc.data().shopId;
                 
-                // Fetch Shop Details
+                // Phir shops collection se shop details laayein
                 const shopDoc = await getDoc(doc(db, 'artifacts', appId, 'public', 'data', 'shops', currentShopId));
                 if (shopDoc.exists()) {
                     const data = shopDoc.data();
@@ -109,7 +85,7 @@ onAuthStateChanged(auth, async (user) => {
                 startListeningToQueue();
                 loadShopAnalytics();
             } else {
-                console.warn("Profile not found.");
+                console.warn("User profile not found in Firestore.");
             }
         } catch(e) { console.error("Initialization Error:", e); }
     } else {
@@ -117,7 +93,7 @@ onAuthStateChanged(auth, async (user) => {
     }
 });
 
-// Logout Handler
+// Logout Button Logic
 const logoutBtn = document.getElementById('btn-logout');
 if (logoutBtn) {
     logoutBtn.onclick = () => {
@@ -126,19 +102,15 @@ if (logoutBtn) {
 }
 
 // ==========================================
-// 3. QR Code & Link Sharing
+// 3. QR Code Logic
 // ==========================================
-const getBaseUrl = () => {
-    let url = window.location.origin + window.location.pathname;
-    return url.substring(0, url.lastIndexOf('/'));
-};
-
 function generateShopQR() {
     const con = document.getElementById('main-qr-canvas');
     if (!con || !currentShopId) return;
     con.innerHTML = "";
     
-    const shopUrl = `${getBaseUrl()}/customer.html?shop=${currentShopId}`;
+    const baseUrl = window.location.origin + window.location.pathname.replace(/\/[^\/]*$/, '');
+    const shopUrl = `${baseUrl}/customer.html?shop=${currentShopId}`;
     document.getElementById('qr-link-text').textContent = shopUrl;
     
     if (typeof window.QRCode !== 'undefined') {
@@ -161,13 +133,14 @@ window.copyShopLink = () => {
     dummy.select();
     document.execCommand("copy");
     document.body.removeChild(dummy);
-    window.showToast('Shop link copied!', 'success');
+    window.showToast('Shop URL copied!', 'success');
 };
 
 // ==========================================
 // 4. Real-time Queue Logic
 // ==========================================
 function startListeningToQueue() {
+    // RULE 1: /artifacts/{appId}/public/data/prints
     const q = collection(db, 'artifacts', appId, 'public', 'data', 'prints');
     
     onSnapshot(q, (snapshot) => {
@@ -181,7 +154,6 @@ function startListeningToQueue() {
             
             if (data.shopId !== currentShopId) return;
 
-            // Auto-Delete logic
             if (data.expiresAt && now > data.expiresAt) {
                 if (data.filePath) deleteObject(ref(storage, data.filePath)).catch(() => {});
                 deleteDoc(doc(db, 'artifacts', appId, 'public', 'data', 'prints', data.id));
@@ -219,8 +191,8 @@ function buildCard(j) {
     <div class="bg-white rounded-2xl p-5 border border-slate-200 shadow-sm relative overflow-hidden transition-all hover:shadow-md ${isDone ? 'opacity-70' : ''}">
         <div class="absolute left-0 top-0 bottom-0 w-1.5 ${statusCol}"></div>
         <div class="flex justify-between items-start mb-4">
-            <div class="bg-slate-900 text-white px-4 py-1.5 rounded-xl text-xl font-black tracking-tight shadow-sm">#${j.token}</div>
-            <div class="text-[10px] font-black text-slate-400 uppercase bg-slate-100 px-2 py-1 rounded-md">${time}</div>
+            <div class="bg-slate-900 text-white px-4 py-1.5 rounded-xl text-xl font-black tracking-tight">#${j.token}</div>
+            <div class="text-[10px] font-black text-slate-400 uppercase tracking-widest bg-slate-100 px-2 py-1 rounded-md">${time}</div>
         </div>
         
         <div class="flex items-center gap-3 bg-slate-50 p-3 rounded-2xl border border-slate-100 mb-4">
@@ -237,9 +209,9 @@ function buildCard(j) {
         <div class="flex gap-2">
             ${!isDone ? 
                 (j.status === 'Pending' ? 
-                    `<button onclick="window.updateJobStatus('${j.id}', 'Printing')" class="flex-1 bg-blue-600 text-white text-xs font-black py-3 rounded-xl shadow-lg transition-all active:scale-95">Start Printing</button>` : 
-                    `<button onclick="window.markJobAsDone('${j.id}')" class="flex-1 bg-emerald-600 text-white text-xs font-black py-3 rounded-xl shadow-lg transition-all active:scale-95">Complete Job</button>`) 
-                : `<div class="flex-1 text-center py-2 text-emerald-600 font-black text-xs uppercase tracking-widest bg-emerald-50 rounded-xl border border-emerald-100">Printed ✓</div>`
+                    `<button onclick="window.updateJobStatus('${j.id}', 'Printing')" class="flex-1 bg-blue-600 text-white text-xs font-black py-3 rounded-xl transition-all active:scale-95">Start Print</button>` : 
+                    `<button onclick="window.markJobAsDone('${j.id}')" class="flex-1 bg-emerald-600 text-white text-xs font-black py-3 rounded-xl transition-all active:scale-95">Complete</button>`) 
+                : `<div class="flex-1 text-center py-2 text-emerald-600 font-black text-xs uppercase bg-emerald-50 rounded-xl border border-emerald-100">Printed ✓</div>`
             }
             <button onclick="window.askDelete('${j.id}', '${j.filePath}')" class="p-3 text-slate-400 hover:text-red-600 transition-colors"><i data-lucide="trash-2" class="w-5 h-5"></i></button>
         </div>
@@ -250,7 +222,7 @@ function renderQueue() {
     const qc = document.getElementById('queue-cards');
     if (!qc) return;
     const filtered = allJobs.filter(j => j.status !== 'Done' && (qFilter === 'all' || j.status === qFilter));
-    qc.innerHTML = filtered.length ? filtered.map(j => buildCard(j)).join('') : `<div class="col-span-full py-20 text-center"><i data-lucide="inbox" class="w-12 h-12 text-slate-200 mx-auto mb-2"></i><p class="text-sm font-bold text-slate-400">Queue is empty</p></div>`;
+    qc.innerHTML = filtered.length ? filtered.map(j => buildCard(j)).join('') : `<div class="col-span-full py-20 text-center"><p class="text-sm font-bold text-slate-400 text-xs uppercase tracking-widest">Queue is empty</p></div>`;
     if (window.lucide) window.lucide.createIcons();
 }
 
@@ -258,16 +230,16 @@ function renderDone() {
     const dc = document.getElementById('done-cards');
     if (!dc) return;
     const filtered = allJobs.filter(j => j.status === 'Done');
-    dc.innerHTML = filtered.length ? filtered.map(j => buildCard(j)).join('') : `<div class="col-span-full py-20 text-center"><p class="text-sm font-bold text-slate-400">No jobs completed yet</p></div>`;
+    dc.innerHTML = filtered.length ? filtered.map(j => buildCard(j)).join('') : `<div class="col-span-full py-20 text-center"><p class="text-sm font-bold text-slate-400 text-xs uppercase tracking-widest">No history found</p></div>`;
     if (window.lucide) window.lucide.createIcons();
 }
 
 // ==========================================
-// 5. Database Actions & Revenue
+// 5. Database Actions & Revenue (Attached to window)
 // ==========================================
 window.updateJobStatus = async (id, status) => {
     await updateDoc(doc(db, 'artifacts', appId, 'public', 'data', 'prints', id), { status });
-    window.showToast(`Order is now ${status}`);
+    window.showToast(`Status: ${status}`);
 };
 
 window.markJobAsDone = async (id) => {
@@ -276,7 +248,7 @@ window.markJobAsDone = async (id) => {
 
     await updateDoc(doc(db, 'artifacts', appId, 'public', 'data', 'prints', id), { status: 'Done' });
     
-    // Revenue tracking
+    // Revenue tracking Logic
     const today = new Date().toISOString().split('T')[0];
     const statRef = doc(db, 'artifacts', appId, 'public', 'data', 'shop_analytics', `${currentShopId}_${today}`);
     const amount = Number(job.billEstimate) || 0;
@@ -287,7 +259,7 @@ window.markJobAsDone = async (id) => {
     } else {
         await setDoc(statRef, { shopId: currentShopId, date: today, revenue: amount, totalTokens: 1, timestamp: Date.now() });
     }
-    window.showToast("Job marked as Done & Recorded!", "success");
+    window.showToast("Job Completed & Recorded!", "success");
 };
 
 // ==========================================
@@ -305,21 +277,18 @@ window.closeConfirm = () => {
     deleteContext = null;
 };
 
-const confirmDeleteBtn = document.getElementById('btn-confirm-delete');
-if (confirmDeleteBtn) {
-    confirmDeleteBtn.onclick = async () => {
-        if (!deleteContext) return;
-        const { id, path } = deleteContext;
-        try {
-            if (path && path !== 'undefined') {
-                await deleteObject(ref(storage, path)).catch(() => {});
-            }
-            await deleteDoc(doc(db, 'artifacts', appId, 'public', 'data', 'prints', id));
-            window.showToast("Order deleted permanently.", "info");
-        } catch(e) { console.error(e); }
-        window.closeConfirm();
-    };
-}
+document.getElementById('btn-confirm-delete').onclick = async () => {
+    if (!deleteContext) return;
+    const { id, path } = deleteContext;
+    try {
+        if (path && path !== 'undefined') {
+            await deleteObject(ref(storage, path)).catch(() => {});
+        }
+        await deleteDoc(doc(db, 'artifacts', appId, 'public', 'data', 'prints', id));
+        window.showToast("Order deleted.", "info");
+    } catch(e) { console.error(e); }
+    window.closeConfirm();
+};
 
 // ==========================================
 // 7. Analytics Logic
@@ -371,7 +340,7 @@ window.toggleSound = () => {
         btn.innerHTML = soundEnabled ? '<i data-lucide="bell" class="w-5 h-5"></i>' : '<i data-lucide="bell-off" class="w-5 h-5 text-red-400"></i>';
         if (window.lucide) window.lucide.createIcons();
     }
-    window.showToast(soundEnabled ? "Alert sound on" : "Alert sound off");
+    window.showToast(soundEnabled ? "Sound on" : "Sound muted");
 };
 
 function playAlertSound() {
@@ -408,4 +377,5 @@ window.showToast = (msg, type = 'info') => {
     }
 };
 
+// Start
 if (window.lucide) window.lucide.createIcons();
