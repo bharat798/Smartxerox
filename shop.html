@@ -4,11 +4,11 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Smart Xerox | Shop Owner Dashboard</title>
-    <!-- Tailwind CSS for styling -->
+    <!-- Tailwind CSS -->
     <script src="https://cdn.tailwindcss.com"></script>
-    <!-- Lucide Icons for professional look -->
+    <!-- Lucide Icons -->
     <script src="https://unpkg.com/lucide@latest"></script>
-    <!-- Reliable QR Code Library -->
+    <!-- QR Code Library -->
     <script src="https://cdn.jsdelivr.net/gh/davidshimjs/qrcodejs/qrcode.min.js"></script>
     <style>
         @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap');
@@ -27,258 +27,163 @@
         @keyframes modalBounce { 0% { transform: scale(0.9); opacity: 0; } 100% { transform: scale(1); opacity: 1; } }
         .modal-animate { animation: modalBounce 0.2s ease-out forwards; }
 
-        /* Navigation & View Logic */
         .view-section { display: none; }
         .view-section.active { display: block; animation: slideIn 0.3s ease-out; }
         
-        .active-nav { background-color: rgba(37, 99, 235, 0.1) !important; color: #2563eb !important; border-left: 4px solid #2563eb !important; }
+        .active-nav { background-color: rgba(37, 99, 235, 0.1) !important; color: #3b82f6 !important; border-left: 4px solid #3b82f6 !important; }
         .nav-item { transition: all 0.2s ease; }
     </style>
 </head>
 <body class="text-slate-800 h-screen flex overflow-hidden">
 
-    <!-- Mobile Sidebar Overlay (For responsiveness) -->
+    <!-- Mobile Sidebar Overlay -->
     <div id="mobile-overlay" class="fixed inset-0 bg-slate-900/50 z-20 hidden md:hidden" onclick="window.toggleSidebar()"></div>
 
     <!-- Sidebar Navigation -->
-    <aside id="sidebar" class="bg-slate-900 text-slate-300 w-64 shrink-0 flex flex-col h-full fixed md:relative z-30 transition-transform duration-300 -translate-x-full md:translate-x-0 shadow-2xl">
-        <!-- Logo Area -->
+    <aside id="sidebar" class="bg-[#0f172a] text-slate-300 w-64 shrink-0 flex flex-col h-full fixed md:relative z-30 transition-transform duration-300 -translate-x-full md:translate-x-0 shadow-2xl">
         <div class="h-16 flex items-center px-6 border-b border-white/10 text-white font-bold text-lg gap-2 shrink-0">
-            <div class="bg-blue-600 p-1 rounded-lg"><i data-lucide="printer" class="w-5 h-5"></i></div>
-            Shop<span class="text-blue-500">Panel</span>
+            <div class="bg-blue-600 p-1.5 rounded-lg"><i data-lucide="printer" class="w-5 h-5 text-white"></i></div>
+            Shop<span class="text-blue-400">Panel</span>
             <button class="md:hidden ml-auto text-slate-400" onclick="window.toggleSidebar()"><i data-lucide="x" class="w-5 h-5"></i></button>
         </div>
 
-        <!-- Menu Links -->
         <nav class="flex-1 py-6 overflow-y-auto">
             <div class="px-4 mb-4 text-[10px] font-bold text-slate-500 uppercase tracking-widest">Main Menu</div>
             <ul class="space-y-1 px-3">
-                <li>
-                    <button id="nav-queue" onclick="window.switchView('queue', this)" class="nav-item w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium hover:bg-white/5 active-nav">
-                        <i data-lucide="list-todo" class="w-5 h-5"></i>
-                        Print Queue
-                        <span id="q-badge" class="ml-auto bg-blue-500 text-white text-[10px] font-bold px-2 py-0.5 rounded-full hidden">0</span>
-                    </button>
-                </li>
-                <li>
-                    <button id="nav-done" onclick="window.switchView('done', this)" class="nav-item w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium hover:bg-white/5">
-                        <i data-lucide="check-circle" class="w-5 h-5"></i>
-                        Completed Jobs
-                    </button>
-                </li>
-                <li>
-                    <button id="nav-qr" onclick="window.switchView('qr', this)" class="nav-item w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium hover:bg-white/5">
-                        <i data-lucide="qr-code" class="w-5 h-5"></i>
-                        Shop QR Code
-                    </button>
-                </li>
-            </ul>
-
-            <div class="px-4 mt-8 mb-4 text-[10px] font-bold text-slate-500 uppercase tracking-widest">Finance</div>
-            <ul class="space-y-1 px-3">
-                <li>
-                    <button id="nav-analytics" onclick="window.switchView('analytics', this)" class="nav-item w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium hover:bg-white/5">
-                        <i data-lucide="bar-chart-2" class="w-5 h-5"></i>
-                        Revenue Analytics
-                    </button>
-                </li>
+                <li><button id="nav-queue" onclick="window.switchView('queue', this)" class="nav-item w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium hover:bg-white/5 active-nav"><i data-lucide="list-todo" class="w-5 h-5"></i> Print Queue <span id="q-badge" class="ml-auto bg-blue-500 text-white text-[10px] font-bold px-2 py-0.5 rounded-full hidden">0</span></button></li>
+                <li><button onclick="window.switchView('done', this)" class="nav-item w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium hover:bg-white/5"><i data-lucide="check-circle" class="w-5 h-5"></i> Completed Jobs</button></li>
+                <li><button onclick="window.switchView('qr', this)" class="nav-item w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium hover:bg-white/5"><i data-lucide="qr-code" class="w-5 h-5"></i> Shop QR Code</button></li>
+                <li><button onclick="window.switchView('analytics', this)" class="nav-item w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium hover:bg-white/5"><i data-lucide="bar-chart-2" class="w-5 h-5"></i> Revenue Analytics</button></li>
             </ul>
         </nav>
 
-        <!-- Sidebar Profile & Logout -->
         <div class="p-4 border-t border-white/10 bg-slate-900/50">
             <div class="flex items-center gap-3 mb-4 px-2">
-                <div class="w-10 h-10 rounded-full bg-blue-500 flex items-center justify-center text-white font-bold shadow-inner shrink-0">
-                    <i data-lucide="user" class="w-5 h-5"></i>
-                </div>
+                <div class="w-10 h-10 rounded-full bg-blue-500 flex items-center justify-center text-white font-bold shrink-0"><i data-lucide="user" class="w-5 h-5"></i></div>
                 <div class="flex-1 min-w-0">
                     <p class="text-sm font-bold text-white truncate" id="shop-owner-name">Loading...</p>
-                    <p id="shop-user-email" class="text-[10px] text-slate-400 truncate">Loading...</p>
+                    <p id="shop-user-email" class="text-[10px] text-slate-400 truncate">Authenticating...</p>
                 </div>
             </div>
-            <button id="btn-logout" class="w-full py-2.5 bg-red-500/10 hover:bg-red-500/20 text-red-400 text-xs font-bold rounded-xl border border-red-500/20 transition-all flex items-center justify-center gap-2 active:scale-95">
-                <i data-lucide="log-out" class="w-4 h-4"></i> Sign Out Partner
+            <button id="btn-logout" class="w-full py-2.5 bg-red-500/10 hover:bg-red-500/20 text-red-400 text-xs font-bold rounded-xl border border-red-500/20 transition-all flex items-center justify-center gap-2">
+                <i data-lucide="log-out" class="w-4 h-4"></i> Sign Out
             </button>
         </div>
     </aside>
 
-    <!-- Main Content Area -->
     <main class="flex-1 flex flex-col h-full overflow-hidden">
-        
-        <!-- Dashboard Topbar -->
-        <header class="h-16 bg-white border-b border-slate-200 flex items-center justify-between px-4 md:px-8 shrink-0 shadow-sm z-10">
+        <header class="h-16 bg-white border-b border-slate-200 flex items-center justify-between px-4 md:px-8 shrink-0 z-10 shadow-sm">
             <div class="flex items-center gap-3">
                 <button class="md:hidden p-2 text-slate-500" onclick="window.toggleSidebar()"><i data-lucide="menu" class="w-6 h-6"></i></button>
                 <div class="flex flex-col">
                     <h1 class="text-base font-bold text-slate-800 leading-none" id="ui-shop-name">Connecting...</h1>
-                    <span class="text-[10px] font-bold text-slate-400 mt-1 uppercase tracking-tighter" id="ui-shop-id">Authenticating...</span>
+                    <span class="text-[10px] font-bold text-slate-400 uppercase tracking-tighter" id="ui-shop-id">Please wait...</span>
                 </div>
             </div>
-
             <div class="flex items-center gap-4">
-                <!-- Status Badge -->
                 <div class="flex items-center gap-2 bg-emerald-50 text-emerald-700 px-3 py-1.5 rounded-full border border-emerald-100 text-[10px] font-black uppercase tracking-wider">
-                    <span class="relative flex h-2 w-2">
-                      <span class="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
-                      <span class="relative inline-flex rounded-full h-2 w-2 bg-emerald-500"></span>
-                    </span>
-                    Live Dashboard
+                    <span class="relative flex h-2 w-2"><span class="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span><span class="relative inline-flex rounded-full h-2 w-2 bg-emerald-500"></span></span> Live
                 </div>
-                <!-- Sound Toggle -->
-                <button id="btn-sound" onclick="window.toggleSound()" class="p-2 text-slate-400 hover:text-blue-600 transition-colors bg-slate-50 rounded-lg border border-slate-100" title="Toggle Notification Sound">
-                    <i data-lucide="bell" class="w-5 h-5"></i>
-                </button>
+                <button id="btn-sound" onclick="window.toggleSound()" class="p-2 text-slate-400 hover:text-blue-600 transition-colors bg-slate-50 rounded-lg border border-slate-100"><i data-lucide="bell" class="w-5 h-5"></i></button>
             </div>
         </header>
 
-        <!-- Dynamic Content Body -->
         <div class="flex-1 overflow-y-auto p-4 md:p-8 bg-slate-50">
-            
-            <!-- VIEW: PRINT QUEUE -->
+            <!-- VIEW: QUEUE -->
             <div id="view-queue" class="view-section active">
-                <!-- Top Summary Stats -->
                 <div class="grid grid-cols-2 lg:grid-cols-3 gap-4 mb-8">
-                    <div class="bg-white p-5 rounded-2xl shadow-sm border border-slate-200 flex items-center gap-4 transition-all hover:shadow-md">
+                    <div class="bg-white p-5 rounded-2xl shadow-sm border border-slate-200 flex items-center gap-4 transition-all hover:scale-105">
                         <div class="w-12 h-12 bg-amber-50 text-amber-600 rounded-xl flex items-center justify-center shrink-0 border border-amber-100"><i data-lucide="clock" class="w-6 h-6"></i></div>
-                        <div>
-                            <p class="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Active Jobs</p>
-                            <h3 class="text-3xl font-black text-slate-800" id="s-pending">0</h3>
-                        </div>
+                        <div><p class="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Active Jobs</p><h3 class="text-3xl font-black text-slate-800" id="s-pending">0</h3></div>
                     </div>
-                    <div class="bg-white p-5 rounded-2xl shadow-sm border border-slate-200 flex items-center gap-4 transition-all hover:shadow-md">
+                    <div class="bg-white p-5 rounded-2xl shadow-sm border border-slate-200 flex items-center gap-4 transition-all hover:scale-105">
                         <div class="w-12 h-12 bg-blue-50 text-blue-600 rounded-xl flex items-center justify-center shrink-0 border border-blue-100"><i data-lucide="layers" class="w-6 h-6"></i></div>
-                        <div>
-                            <p class="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Received Today</p>
-                            <h3 class="text-3xl font-black text-slate-800" id="s-total">0</h3>
-                        </div>
+                        <div><p class="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Received Today</p><h3 class="text-3xl font-black text-slate-800" id="s-total">0</h3></div>
                     </div>
                 </div>
-
-                <!-- Section Header & Filter -->
-                <div class="flex flex-col sm:flex-row sm:items-center justify-between mb-6 gap-4">
-                    <h2 class="text-xl font-black text-slate-800 flex items-center gap-2">
-                        <i data-lucide="files" class="w-6 h-6 text-blue-600"></i> New Print Requests
-                    </h2>
-                    <div class="flex bg-slate-200/50 p-1.5 rounded-xl border border-slate-200">
+                <div class="flex items-center justify-between mb-6">
+                    <h2 class="text-xl font-black text-slate-800">Incoming Prints</h2>
+                    <div class="flex bg-slate-200/50 p-1 rounded-xl">
                         <button onclick="window.filterQ('all', this)" class="px-4 py-1.5 text-xs font-bold rounded-lg bg-white shadow-sm text-blue-600 transition-all">All</button>
-                        <button onclick="window.filterQ('Pending', this)" class="px-4 py-1.5 text-xs font-bold rounded-lg text-slate-500 hover:text-slate-700 transition-all ml-1">Pending</button>
+                        <button onclick="window.filterQ('Pending', this)" class="px-4 py-1.5 text-xs font-bold rounded-lg text-slate-500 ml-1 transition-all">Pending</button>
                     </div>
                 </div>
-
-                <!-- Print Cards Container -->
-                <div id="queue-cards" class="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6">
-                    <!-- Cards will be dynamically injected by js/shop.js -->
-                    <div class="col-span-full py-20 text-center">
-                        <i data-lucide="loader-2" class="w-10 h-10 animate-spin text-blue-500 mx-auto mb-4"></i>
-                        <p class="text-slate-400 font-bold uppercase tracking-widest text-xs">Fetching Live Queue...</p>
-                    </div>
+                <div id="queue-cards" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                    <div class="col-span-full py-20 text-center"><i data-lucide="loader-2" class="w-10 h-10 animate-spin text-blue-500 mx-auto mb-4"></i><p class="text-slate-400 font-bold uppercase tracking-widest text-xs">Fetching Queue...</p></div>
                 </div>
             </div>
 
-            <!-- VIEW: ANALYTICS & EARNINGS -->
+            <!-- VIEW: ANALYTICS -->
             <div id="view-analytics" class="view-section">
-                <div class="mb-8">
-                    <h2 class="text-2xl font-black text-slate-800">Shop Financial Analytics</h2>
-                    <p class="text-sm text-slate-500">Day-to-day business performance and revenue tracking.</p>
-                </div>
-
                 <div class="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
-                    <!-- Today Earnings -->
-                    <div class="bg-gradient-to-br from-emerald-500 to-emerald-600 p-8 rounded-[2rem] text-white shadow-xl shadow-emerald-200 relative overflow-hidden">
+                    <div class="bg-gradient-to-br from-emerald-500 to-emerald-600 p-8 rounded-[2rem] text-white shadow-xl shadow-emerald-200 relative overflow-hidden transition-all hover:scale-105">
                         <i data-lucide="indian-rupee" class="absolute -right-6 -bottom-6 w-32 h-32 opacity-20 rotate-12"></i>
-                        <p class="text-xs font-black uppercase tracking-widest opacity-80 mb-1">Today's Revenue</p>
+                        <p class="text-xs font-black uppercase mb-1">Today's Revenue</p>
                         <h3 class="text-5xl font-black">₹<span id="stat-earn-today">0</span></h3>
                     </div>
-                    <!-- Today Tokens -->
-                    <div class="bg-white p-8 rounded-[2rem] border-2 border-slate-100 shadow-sm">
-                        <p class="text-xs font-black text-slate-400 uppercase tracking-widest mb-1">Tokens Served Today</p>
+                    <div class="bg-white p-8 rounded-[2rem] border border-slate-200 shadow-sm transition-all hover:scale-105">
+                        <p class="text-xs font-black text-slate-400 uppercase mb-1">Today's Tokens</p>
                         <h3 class="text-5xl font-black text-blue-600" id="stat-tokens-today">0</h3>
                     </div>
-                    <!-- Lifetime Revenue -->
-                    <div class="bg-white p-8 rounded-[2rem] border-2 border-slate-100 shadow-sm">
-                        <p class="text-xs font-black text-slate-400 uppercase tracking-widest mb-1">Lifetime Revenue</p>
+                    <div class="bg-white p-8 rounded-[2rem] border border-slate-200 shadow-sm transition-all hover:scale-105">
+                        <p class="text-xs font-black text-slate-400 uppercase mb-1">Lifetime Revenue</p>
                         <h3 class="text-5xl font-black text-slate-800">₹<span id="stat-earn-total">0</span></h3>
                     </div>
                 </div>
-
-                <!-- Detailed Revenue Ledger -->
-                <div class="bg-white rounded-[2rem] border border-slate-200 overflow-hidden shadow-sm">
-                    <div class="p-6 border-b border-slate-100 flex items-center justify-between bg-slate-50/50">
-                        <h3 class="font-black text-slate-800 uppercase tracking-widest text-xs">Daily Performance Ledger</h3>
-                        <i data-lucide="calendar-check" class="w-5 h-5 text-slate-400"></i>
+                <div class="bg-white rounded-3xl border border-slate-200 overflow-hidden shadow-sm">
+                    <div class="p-6 border-b border-slate-100 font-black text-xs uppercase tracking-widest flex items-center justify-between">
+                        <span>Daily Revenue Record</span>
+                        <i data-lucide="calendar" class="w-4 h-4 text-slate-400"></i>
                     </div>
                     <div class="overflow-x-auto">
                         <table class="w-full text-left">
                             <thead class="bg-slate-50 text-[10px] font-black uppercase text-slate-400 border-b border-slate-100">
-                                <tr>
-                                    <th class="p-5">Date</th>
-                                    <th class="p-5 text-center">Tokens Serviced</th>
-                                    <th class="p-5 text-right">Net Revenue (₹)</th>
-                                </tr>
+                                <tr><th class="p-5">Date</th><th class="p-5 text-center">Total Tokens</th><th class="p-5 text-right">Earning (₹)</th></tr>
                             </thead>
-                            <tbody id="daily-revenue-table" class="divide-y divide-slate-50 font-semibold text-slate-700">
-                                <!-- Data injected via logic -->
+                            <tbody id="daily-revenue-table" class="text-sm divide-y divide-slate-50">
+                                <!-- Records Injected here -->
                             </tbody>
                         </table>
                     </div>
                 </div>
             </div>
 
-            <!-- VIEW: COMPLETED JOBS -->
+            <!-- VIEW: DONE -->
             <div id="view-done" class="view-section">
-                <h2 class="text-2xl font-black mb-8 flex items-center gap-3"><i data-lucide="history" class="w-7 h-7 text-emerald-600"></i> Recently Completed</h2>
-                <div id="done-cards" class="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6"></div>
+                <h2 class="text-xl font-black mb-6 flex items-center gap-2"><i data-lucide="history" class="w-6 h-6 text-emerald-600"></i> Completed History</h2>
+                <div id="done-cards" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6"></div>
             </div>
 
-            <!-- VIEW: SHOP QR CODE -->
+            <!-- VIEW: QR -->
             <div id="view-qr" class="view-section">
                 <div class="max-w-md mx-auto mt-10 bg-white p-12 rounded-[3rem] border border-slate-200 text-center shadow-2xl">
-                    <div class="w-20 h-20 bg-blue-100 text-blue-600 rounded-3xl flex items-center justify-center mx-auto mb-8 shadow-inner"><i data-lucide="qr-code" class="w-10 h-10"></i></div>
-                    <h2 class="text-2xl font-black text-slate-800 mb-2 tracking-tight">Shop QR Access</h2>
-                    <p class="text-sm text-slate-500 mb-10 px-4">Display this code at your counter. Customers can upload documents directly from their phone.</p>
-                    
-                    <div class="bg-white p-6 inline-block border-4 border-slate-50 rounded-[2.5rem] mb-10 shadow-inner">
-                        <!-- QR Code Canvas Container -->
-                        <div id="main-qr-canvas" class="flex justify-center items-center" style="width: 180px; height: 180px;"></div>
-                    </div>
-
+                    <h2 class="text-2xl font-black text-slate-800 mb-2">Shop Access Code</h2>
+                    <div class="bg-white p-6 inline-block border-4 border-slate-50 rounded-[2.5rem] my-8 shadow-inner"><div id="main-qr-canvas" style="width: 180px; height: 180px;"></div></div>
                     <p id="qr-link-text" class="text-[10px] font-mono text-slate-400 bg-slate-50 p-4 rounded-2xl mb-8 truncate border border-slate-100"></p>
-                    
-                    <button onclick="window.copyShopLink()" class="w-full bg-blue-600 hover:bg-blue-700 text-white font-black py-4 rounded-2xl transition-all shadow-xl shadow-blue-200 active:scale-95 flex items-center justify-center gap-3 group">
-                        <i data-lucide="copy" class="w-5 h-5 group-hover:rotate-12 transition-transform"></i> Copy Shareable URL
-                    </button>
+                    <button onclick="window.copyShopLink()" class="w-full bg-blue-600 text-white font-black py-4 rounded-2xl shadow-lg shadow-blue-200 active:scale-95 transition-all flex items-center justify-center gap-2"><i data-lucide="copy" class="w-5 h-5"></i> Copy Shop URL</button>
                 </div>
             </div>
         </div>
     </main>
 
-    <!-- 🟢 PROFESSIONAL CONFIRMATION MODAL (For Secure Deletion) 🟢 -->
-    <div id="confirm-modal" class="fixed inset-0 bg-slate-900/70 backdrop-blur-md z-[100] hidden flex items-center justify-center p-4">
+    <!-- CONFIRMATION MODAL -->
+    <div id="confirm-modal" class="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-[100] hidden flex items-center justify-center p-4">
         <div class="bg-white rounded-[2.5rem] shadow-2xl max-w-sm w-full p-10 modal-animate text-center">
             <div class="w-20 h-20 bg-red-50 text-red-500 rounded-full flex items-center justify-center mx-auto mb-6"><i data-lucide="trash-2" class="w-10 h-10"></i></div>
-            <h3 class="text-2xl font-black text-slate-800 mb-2">Delete Job?</h3>
-            <p class="text-sm text-slate-500 mb-8 leading-relaxed">This will permanently delete the document from cloud storage. Guest customers will not be able to retrieve it.</p>
+            <h3 class="text-2xl font-black text-slate-800 mb-2">Delete Document?</h3>
+            <p class="text-sm text-slate-500 mb-8 leading-relaxed">This will permanently delete the file from storage. Customer won't be able to retrieve it.</p>
             <div class="flex gap-4">
-                <button onclick="window.closeConfirm()" class="flex-1 py-4 bg-slate-100 rounded-2xl font-black text-slate-500 hover:bg-slate-200 transition-all uppercase tracking-widest text-[10px]">Back</button>
-                <button id="btn-confirm-delete" class="flex-1 py-4 bg-red-600 text-white rounded-2xl font-black hover:bg-red-700 shadow-lg shadow-red-200 transition-all active:scale-95 uppercase tracking-widest text-[10px]">Delete Forever</button>
+                <button onclick="window.closeConfirm()" class="flex-1 py-4 bg-slate-100 rounded-2xl font-black text-slate-500">Back</button>
+                <button id="btn-confirm-delete" class="flex-1 py-4 bg-red-600 text-white rounded-2xl font-black shadow-lg shadow-red-200 active:scale-95 transition-all">Yes, Delete</button>
             </div>
         </div>
     </div>
 
-    <!-- Professional Toast Notification Container -->
+    <!-- Toast Notification -->
     <div id="toast" class="fixed top-8 left-1/2 -translate-x-1/2 z-[110] flex items-center gap-4 bg-slate-900 text-white px-8 py-5 rounded-[2rem] shadow-2xl text-[11px] font-black uppercase tracking-widest transition-all duration-300 opacity-0 pointer-events-none -translate-y-4">
-        <i id="toast-icon" data-lucide="info" class="w-5 h-5 text-blue-400"></i>
-        <span id="toast-msg">Updating System...</span>
+        <i id="toast-icon" data-lucide="info" class="w-5 h-5 text-blue-400"></i><span id="toast-msg"></span>
     </div>
 
-    <!-- Important: Linking the Logic JS File as a Module -->
     <script type="module" src="./js/shop.js"></script>
-    
-    <!-- Initialize basic UI icons on page load -->
-    <script>
-        window.addEventListener('load', () => {
-            if(window.lucide) window.lucide.createIcons();
-        });
-    </script>
 </body>
 </html>
