@@ -3,7 +3,6 @@ import { onAuthStateChanged, signOut, signInWithCustomToken, signInAnonymously }
 import { doc, getDoc, setDoc, collection, onSnapshot, updateDoc, deleteDoc, increment } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js";
 import { ref, deleteObject } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-storage.js";
 
-// --- Global Environment Setup ---
 const appId = typeof __app_id !== 'undefined' ? __app_id : 'default-app-id';
 let currentShopId = null;
 let soundEnabled = true;
