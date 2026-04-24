@@ -4,7 +4,9 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Smart Xerox | Customer Panel</title>
+    <!-- Tailwind CSS -->
     <script src="https://cdn.tailwindcss.com"></script>
+    <!-- Lucide Icons -->
     <script src="https://unpkg.com/lucide@latest"></script>
     <style>
         @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap');
@@ -18,6 +20,7 @@
 </head>
 <body class="text-slate-800 antialiased min-h-screen flex flex-col pb-8">
 
+    <!-- Header -->
     <header class="bg-white border-b border-slate-200 sticky top-0 z-30 shadow-sm">
         <div class="max-w-5xl mx-auto px-4 h-14 sm:h-16 flex items-center justify-between">
             <div class="flex items-center gap-2">
@@ -25,26 +28,27 @@
                 <h1 class="font-bold text-lg sm:text-xl text-slate-900 tracking-tight">Smart<span class="text-blue-600">Xerox</span></h1>
             </div>
             <span class="text-[10px] sm:text-xs font-semibold bg-slate-100 text-slate-600 px-2.5 py-1.5 rounded-full border border-slate-200 flex items-center">
-                <i data-lucide="user" class="w-3.5 h-3.5 mr-1"></i> Guest User
+                <i data-lucide="user" class="w-3.5 h-3.5 mr-1"></i> Guest Customer
             </span>
         </div>
     </header>
 
-    <!-- LOADING & ERROR STATES -->
+    <!-- State Messages -->
     <div id="loading-state" class="flex-1 flex flex-col items-center justify-center p-6 text-center mt-20">
         <i data-lucide="loader-2" class="w-12 h-12 text-blue-500 animate-spin mb-4 mx-auto"></i>
-        <h2 class="text-xl font-bold text-slate-800">Connecting...</h2>
-        <p class="text-sm text-slate-500 mt-2" id="loading-text">Dukan se connect ho rahe hain, kripya intezar karein.</p>
+        <h2 class="text-xl font-bold text-slate-800">Connecting to Shop...</h2>
+        <p class="text-sm text-slate-500 mt-2">Please wait while we set up the connection.</p>
     </div>
 
     <div id="invalid-shop-state" class="hidden flex-1 flex flex-col items-center justify-center p-6 text-center mt-20">
         <div class="w-20 h-20 bg-red-50 rounded-full flex items-center justify-center mx-auto mb-4 text-red-500"><i data-lucide="alert-triangle" class="w-10 h-10"></i></div>
         <h2 class="text-xl font-bold text-slate-800" id="error-title">Invalid QR Code</h2>
-        <p class="text-slate-500 mt-2" id="error-msg">Kripya dukan par maujood sahi QR code scan karein.</p>
+        <p class="text-slate-500 mt-2" id="error-msg">Please scan a valid shop QR code to proceed.</p>
     </div>
 
-    <!-- MAIN APP CONTENT -->
+    <!-- Main Content -->
     <main id="app-main" class="hidden flex-1 max-w-5xl mx-auto w-full p-4 sm:p-5 lg:py-8 flex flex-col lg:flex-row gap-6">
+        
         <!-- Recovery Banner -->
         <div id="recovery-banner" class="hidden fixed top-20 left-4 right-4 md:left-auto md:right-8 md:w-80 bg-slate-900 text-white p-4 rounded-2xl shadow-2xl border-b-4 border-emerald-500 z-50">
             <div class="flex items-start gap-3">
@@ -54,21 +58,18 @@
                     <p class="text-2xl font-black" id="rec-token">#0</p>
                     <p class="text-[10px] text-slate-400 truncate mt-1" id="rec-filename"></p>
                 </div>
-                <button id="btn-close-recovery" class="p-1 hover:bg-white/10 rounded-lg"><i data-lucide="x" class="w-4 h-4"></i></button>
+                <button onclick="document.getElementById('recovery-banner').classList.add('hidden')" class="p-1 hover:bg-white/10 rounded-lg"><i data-lucide="x" class="w-4 h-4"></i></button>
             </div>
         </div>
 
+        <!-- Left Side: Upload -->
         <div class="flex-1 space-y-5">
             <div class="bg-white rounded-2xl shadow-sm border border-slate-200 p-4">
                 <div class="flex items-center gap-4">
                     <div class="w-12 h-12 bg-blue-50 text-blue-600 rounded-xl flex items-center justify-center shrink-0 border border-blue-100"><i data-lucide="store" class="w-6 h-6"></i></div>
                     <div class="flex-1 min-w-0">
-                        <h2 class="text-lg font-bold text-slate-800 truncate" id="ui-shop-name">Loading...</h2>
-                        <p class="text-xs text-slate-500 truncate" id="ui-shop-address">Loading...</p>
-                    </div>
-                    <div class="text-right border-l pl-4 border-slate-100">
-                        <p class="text-[10px] font-bold text-slate-400 uppercase">Rates</p>
-                        <p class="text-xs font-bold text-slate-700">₹<span id="rate-bw">0</span> / ₹<span id="rate-color">0</span></p>
+                        <h2 class="text-lg font-bold text-slate-800 truncate" id="ui-shop-name">Loading Shop...</h2>
+                        <p class="text-xs text-slate-500 truncate" id="ui-shop-address">Attempting to connect...</p>
                     </div>
                 </div>
             </div>
@@ -79,8 +80,8 @@
                         <input type="file" id="file-input" class="absolute inset-0 w-full h-full opacity-0 cursor-pointer z-10" accept=".pdf,.doc,.docx,.jpg,.jpeg,.png">
                         <div id="upload-prompt" class="pointer-events-none">
                             <div class="w-16 h-16 bg-blue-50 text-blue-500 rounded-full flex items-center justify-center mx-auto mb-4 group-hover:scale-110 transition-transform"><i data-lucide="file-up" class="w-8 h-8"></i></div>
-                            <p class="font-bold text-slate-700">File upload karne ke liye click karein</p>
-                            <p class="text-xs text-slate-500 mt-1">PDF, Word, ya Images (Max 25MB)</p>
+                            <p class="font-bold text-slate-700">Click or drag document here</p>
+                            <p class="text-xs text-slate-500 mt-1">PDF, Word, or Images (Max 25MB)</p>
                         </div>
                     </div>
 
@@ -115,30 +116,27 @@
                             <label class="cursor-pointer"><input type="radio" name="paperSize" value="A3" class="peer sr-only"><div class="flex items-center justify-center gap-1.5 py-3 rounded-xl border-2 border-slate-100 peer-checked:border-blue-600 peer-checked:bg-blue-600 peer-checked:text-white text-slate-600 font-bold text-sm transition-all">A3 (x2)</div></label>
                         </div>
                     </div>
-                    <div class="md:col-span-2 bg-slate-50 p-4 rounded-xl flex items-center justify-between">
-                        <div><p class="text-xs font-black text-slate-600 uppercase">Number of Copies</p></div>
-                        <div class="flex items-center gap-3 bg-white p-1 rounded-lg border border-slate-200">
-                            <button id="btn-minus" class="w-8 h-8 rounded bg-slate-50 flex items-center justify-center text-slate-600"><i data-lucide="minus" class="w-4 h-4"></i></button>
-                            <input type="number" id="setting-copies" value="1" class="w-8 text-center font-bold text-lg outline-none" readonly>
-                            <button id="btn-plus" class="w-8 h-8 rounded bg-blue-50 flex items-center justify-center text-blue-600"><i data-lucide="plus" class="w-4 h-4"></i></button>
-                        </div>
-                    </div>
                     <div class="md:col-span-2">
-                        <label class="block text-[10px] font-black text-slate-400 uppercase mb-2">Special Instructions</label>
-                        <input type="text" id="special-notes" placeholder="E.g. Staple all pages..." class="w-full border-2 border-slate-100 rounded-xl px-4 py-3 text-sm focus:border-blue-500 outline-none transition-all">
+                        <label class="block text-[10px] font-black text-slate-400 uppercase mb-2">Number of Copies</label>
+                        <div class="flex items-center gap-3 bg-white p-2 rounded-xl border border-slate-200 w-fit">
+                            <button id="btn-minus" class="w-10 h-10 rounded-lg bg-slate-50 flex items-center justify-center text-slate-600"><i data-lucide="minus" class="w-5 h-5"></i></button>
+                            <input type="number" id="setting-copies" value="1" class="w-10 text-center font-bold text-xl outline-none" readonly>
+                            <button id="btn-plus" class="w-10 h-10 rounded-lg bg-blue-50 flex items-center justify-center text-blue-600"><i data-lucide="plus" class="w-5 h-5"></i></button>
+                        </div>
                     </div>
                 </div>
             </div>
         </div>
 
+        <!-- Right Side: Order Summary -->
         <div class="w-full lg:w-96">
             <div class="bg-slate-900 rounded-3xl shadow-2xl border border-slate-800 text-white overflow-hidden sticky top-24">
                 <div class="bg-slate-800/50 px-6 py-4 border-b border-white/5"><h2 class="font-bold flex items-center gap-2"><i data-lucide="receipt" class="w-5 h-5 text-blue-400"></i> Order Summary</h2></div>
                 <div class="p-6">
-                    <div id="bill-empty" class="text-center py-8 text-slate-500"><i data-lucide="calculator" class="w-10 h-10 mx-auto mb-2 opacity-20"></i><p class="text-sm font-medium">Pricing dekhne ke liye file chunein</p></div>
+                    <div id="bill-empty" class="text-center py-8 text-slate-500"><p class="text-sm font-medium">Please select a file to view pricing</p></div>
                     <div id="bill-details" class="hidden space-y-4">
-                        <div class="flex justify-between text-sm text-slate-400"><span>Pages × Copies</span><span class="text-white font-bold"><span id="bill-pages">0</span> × <span id="bill-copies">1</span></span></div>
-                        <div class="flex justify-between text-sm text-slate-400"><span>Mode</span><span id="bill-ratetype" class="font-bold">B&W</span></div>
+                        <div class="flex justify-between text-sm text-slate-400"><span>Color Mode</span><span id="bill-ratetype" class="font-bold text-white uppercase">B&W</span></div>
+                        <div class="flex justify-between text-sm text-slate-400"><span>Quantity</span><span id="bill-copies" class="font-bold text-white">1</span></div>
                         <div class="border-t border-dashed border-slate-700 my-4"></div>
                         <div class="flex justify-between items-end">
                             <p class="text-xs font-bold text-slate-500 uppercase">Estimated Total</p>
@@ -146,80 +144,58 @@
                         </div>
                     </div>
                 </div>
-                <div class="p-4 bg-slate-950">
-                    <button id="btn-submit" disabled class="w-full bg-blue-600 hover:bg-blue-500 disabled:bg-slate-800 disabled:text-slate-600 py-4 rounded-2xl font-bold flex items-center justify-center gap-2 transition-all">Send for Print <i data-lucide="send" class="w-4 h-4"></i></button>
+                <div class="p-4">
+                    <button id="btn-submit" disabled class="w-full bg-blue-600 hover:bg-blue-500 disabled:bg-slate-800 disabled:text-slate-600 py-4 rounded-2xl font-bold flex items-center justify-center gap-2 transition-all">Submit Order <i data-lucide="send" class="w-4 h-4"></i></button>
                 </div>
             </div>
         </div>
     </main>
 
-    <!-- SUCCESS MODAL -->
+    <!-- Success Modal -->
     <div id="success-modal" class="fixed inset-0 bg-slate-900/90 backdrop-blur-md z-50 hidden flex items-center justify-center p-4">
         <div class="bg-white rounded-3xl shadow-2xl max-w-sm w-full p-8 text-center modal-animate">
             <div class="w-20 h-20 bg-emerald-100 rounded-full flex items-center justify-center mx-auto mb-6"><i data-lucide="check-circle-2" class="w-10 h-10 text-emerald-600"></i></div>
-            <h2 class="text-2xl font-black text-slate-800 mb-2">Order Bheja Gaya!</h2>
-            <p class="text-slate-500 text-sm mb-6">Aapka document queue mein hai. Counter par ye token dikhayein.</p>
+            <h2 class="text-2xl font-black text-slate-800 mb-2">Order Submitted!</h2>
+            <p class="text-slate-500 text-sm mb-6">Your document is now in the print queue. Please provide your token number at the counter.</p>
             <div class="bg-slate-50 border-2 border-slate-100 rounded-2xl p-6 mb-6">
-                <p class="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1">Aaj ka Token</p>
+                <p class="text-[10px] font-black text-slate-500 uppercase tracking-widest mb-1">Today's Token</p>
                 <p class="text-6xl font-black text-blue-600 tracking-tighter" id="final-token">#0</p>
             </div>
-            <button id="btn-reset-app" class="w-full bg-slate-900 text-white font-bold py-4 rounded-2xl">Ek aur Bhejein</button>
+            <button onclick="location.reload()" class="w-full bg-slate-900 text-white font-bold py-4 rounded-2xl">Send Another</button>
         </div>
     </div>
 
-    <!-- CUSTOM PROFESSIONAL POPUP (MODAL) -->
+    <!-- Custom Professional Popup -->
     <div id="custom-popup" class="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-[100] hidden flex items-center justify-center p-4 transition-opacity duration-200 opacity-0">
-        <div class="bg-white rounded-3xl shadow-2xl max-w-sm w-full p-6 modal-animate">
-            <div id="popup-icon-container" class="w-14 h-14 rounded-2xl flex items-center justify-center mb-4"></div>
+        <div class="bg-white rounded-3xl shadow-2xl max-w-sm w-full p-6 modal-animate text-center">
+            <div id="popup-icon-container" class="w-14 h-14 rounded-2xl flex items-center justify-center mb-4 mx-auto"></div>
             <h3 id="popup-title" class="text-lg font-bold text-slate-800 mb-1"></h3>
-            <p id="popup-msg" class="text-sm text-slate-500 mb-6 leading-relaxed"></p>
-            <button id="popup-btn" class="w-full bg-slate-900 text-white font-bold py-3 rounded-xl transition-all active:scale-95">Theek Hai</button>
+            <p id="popup-msg" class="text-sm text-slate-500 mb-6"></p>
+            <button id="popup-btn" class="w-full bg-slate-900 text-white font-bold py-3 rounded-xl transition-all active:scale-95">Okay</button>
         </div>
     </div>
 
+    <!-- Logic Setup -->
     <script type="module">
-        import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
-        import { getAuth, signInAnonymously, signInWithCustomToken, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
-        import { getFirestore, doc, getDoc, collection, addDoc, runTransaction } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
-        import { getStorage, ref, uploadBytesResumable, getDownloadURL } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-storage.js";
+        import { auth, db, storage } from './js/firebase-init.js';
+        import { signInAnonymously, onAuthStateChanged, signInWithCustomToken } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-auth.js";
+        import { doc, getDoc, collection, addDoc, runTransaction } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js";
+        import { ref, uploadBytesResumable, getDownloadURL } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-storage.js";
 
-        // Firebase Config and Global Environment
-        const firebaseConfig = JSON.parse(__firebase_config);
-        const app = initializeApp(firebaseConfig);
-        const auth = getAuth(app);
-        const db = getFirestore(app);
-        const storage = getStorage(app);
         const appId = typeof __app_id !== 'undefined' ? __app_id : 'default-app-id';
-
-        let user = null;
         let currentShopId = null;
-        let shopRates = { bw: 2, color: 10, a3_multiplier: 2 };
-        let globalSettings = { maxFileSize: 25, autoDeleteHours: 3 };
+        let shopRates = { bw: 2, color: 10 };
         let currentFile = null;
         let simulatedPageCount = 0;
 
-        // UI Element References
-        const loadingState = document.getElementById('loading-state');
-        const invalidState = document.getElementById('invalid-shop-state');
-        const appMain = document.getElementById('app-main');
-        const dropzone = document.getElementById('dropzone');
-        const fileInput = document.getElementById('file-input');
-
-        // 🟢 PROFESSIONAL POPUP LOGIC 🟢
+        // UI Binding - Popup Helper
         const showPopup = (title, msg, type = 'info') => {
             const popup = document.getElementById('custom-popup');
             const iconCon = document.getElementById('popup-icon-container');
             document.getElementById('popup-title').textContent = title;
             document.getElementById('popup-msg').textContent = msg;
-            
-            if(type === 'error') {
-                iconCon.className = "w-14 h-14 bg-red-100 text-red-600 rounded-2xl flex items-center justify-center mb-4";
-                iconCon.innerHTML = '<i data-lucide="x-circle" class="w-8 h-8"></i>';
-            } else {
-                iconCon.className = "w-14 h-14 bg-blue-100 text-blue-600 rounded-2xl flex items-center justify-center mb-4";
-                iconCon.innerHTML = '<i data-lucide="info" class="w-8 h-8"></i>';
-            }
-            
+            iconCon.className = `w-14 h-14 ${type === 'error' ? 'bg-red-100 text-red-600' : 'bg-blue-100 text-blue-600'} rounded-2xl flex items-center justify-center mb-4 mx-auto`;
+            iconCon.innerHTML = `<i data-lucide="${type === 'error' ? 'x-circle' : 'info'}" class="w-8 h-8"></i>`;
             popup.classList.remove('hidden');
             setTimeout(() => popup.classList.add('opacity-100'), 10);
             lucide.createIcons();
@@ -232,101 +208,63 @@
         };
         document.getElementById('popup-btn').onclick = window.closePopup;
 
-        // 🟢 DAILY TOKEN LOGIC: INCREMENTAL COUNTER STARTING FROM 1 🟢
-        async function getNextToken() {
-            const today = new Date().toISOString().split('T')[0];
-            const counterRef = doc(db, 'artifacts', appId, 'public', 'data', 'counters', `${currentShopId}_${today}`);
-            
-            try {
-                let newToken = 1;
-                await runTransaction(db, async (transaction) => {
-                    const counterSnap = await transaction.get(counterRef);
-                    if (counterSnap.exists()) {
-                        newToken = counterSnap.data().lastToken + 1;
-                        transaction.update(counterRef, { lastToken: newToken });
-                    } else {
-                        transaction.set(counterRef, { lastToken: 1, date: today, shopId: currentShopId });
-                    }
-                });
-                return newToken;
-            } catch (e) {
-                console.error("Token generation error:", e);
-                return Math.floor(Math.random() * 900) + 100; // Emergency fallback
-            }
-        }
-
-        // Initialization
-        const init = async () => {
-            if(window.lucide) window.lucide.createIcons();
-            
-            const urlParams = new URLSearchParams(window.location.search);
-            currentShopId = urlParams.get('shop');
-
-            if (!currentShopId) {
-                loadingState.classList.add('hidden');
-                invalidState.classList.remove('hidden');
-                return;
-            }
-
-            try {
-                // Rule 3: Auth Before Queries
+        // Auth & Shop Initialization
+        onAuthStateChanged(auth, async (user) => {
+            if (!user) {
                 if (typeof __initial_auth_token !== 'undefined' && __initial_auth_token) {
                     await signInWithCustomToken(auth, __initial_auth_token);
                 } else {
                     await signInAnonymously(auth);
                 }
+                return;
+            }
 
-                // Global Settings Rule 1 path
-                const settingsSnap = await getDoc(doc(db, 'artifacts', appId, 'public', 'data', 'settings', 'global'));
-                if(settingsSnap.exists()) globalSettings = { ...globalSettings, ...settingsSnap.data() };
+            const urlParams = new URLSearchParams(window.location.search);
+            currentShopId = urlParams.get('shop');
 
-                // Shop Data Rule 1 path
+            if (!currentShopId) {
+                document.getElementById('loading-state').classList.add('hidden');
+                document.getElementById('invalid-shop-state').classList.remove('hidden');
+                return;
+            }
+
+            try {
+                // Fetch public shop data
                 const shopDoc = await getDoc(doc(db, 'artifacts', appId, 'public', 'data', 'shops', currentShopId));
                 if (shopDoc.exists()) {
                     const data = shopDoc.data();
                     document.getElementById('ui-shop-name').textContent = data.shopName;
                     document.getElementById('ui-shop-address').textContent = data.address || "Partner Shop";
-                    shopRates.bw = parseFloat(data.bwRate) || 2;
-                    shopRates.color = parseFloat(data.colorRate) || 10;
-                    document.getElementById('rate-bw').textContent = shopRates.bw;
-                    document.getElementById('rate-color').textContent = shopRates.color;
+                    shopRates.bw = Number(data.bwRate) || 2;
+                    shopRates.color = Number(data.colorRate) || 10;
                     
-                    loadingState.classList.add('hidden');
-                    appMain.classList.remove('hidden');
+                    document.getElementById('loading-state').classList.add('hidden');
+                    document.getElementById('app-main').classList.remove('hidden');
                     checkPreviousOrder();
                 } else {
-                    loadingState.classList.add('hidden');
-                    invalidState.classList.remove('hidden');
+                    document.getElementById('loading-state').classList.add('hidden');
+                    document.getElementById('invalid-shop-state').classList.remove('hidden');
                 }
             } catch (e) {
-                console.error(e);
-                showPopup("Connection Error", "Server se connect nahi ho pa rahe hain. Kripya refresh karein.");
+                console.error("Initialization Error:", e);
+                showPopup("Connection Error", "Could not establish a connection to the server. Please check your internet.");
             }
-        };
-
-        onAuthStateChanged(auth, (u) => { user = u; if(u) init(); });
+        });
 
         // File Selection Logic
+        const fileInput = document.getElementById('file-input');
         fileInput.onchange = e => { if(e.target.files[0]) handleFiles(e.target.files[0]); };
-        
-        ['dragenter', 'dragover'].forEach(e => dropzone.addEventListener(e, () => dropzone.classList.add('drag-active')));
-        ['dragleave', 'drop'].forEach(e => dropzone.addEventListener(e, () => dropzone.classList.remove('drag-active')));
-        dropzone.addEventListener('drop', e => { 
-            e.preventDefault();
-            if(e.dataTransfer.files[0]) handleFiles(e.dataTransfer.files[0]);
-        });
-        dropzone.addEventListener('dragover', e => e.preventDefault());
 
         function handleFiles(file) {
-            if (file.size > globalSettings.maxFileSize * 1024 * 1024) {
-                showPopup("File Badi Hai", `Maximum limit ${globalSettings.maxFileSize}MB hai.`, "error");
+            if (file.size > 25 * 1024 * 1024) {
+                showPopup("File Too Large", "Maximum file size allowed is 25MB.", "error");
                 return;
             }
             currentFile = file;
             document.getElementById('file-name').textContent = file.name;
             document.getElementById('file-size').textContent = (file.size / 1024 / 1024).toFixed(2) + " MB";
             const ext = file.name.split('.').pop().toLowerCase();
-            simulatedPageCount = ext === 'pdf' ? Math.floor(Math.random() * 15) + 1 : 1;
+            simulatedPageCount = ext === 'pdf' ? Math.floor(Math.random() * 10) + 1 : 1;
             document.getElementById('file-pages').textContent = simulatedPageCount;
             
             document.getElementById('upload-prompt').classList.add('hidden');
@@ -346,99 +284,113 @@
             document.getElementById('bill-empty').classList.remove('hidden');
         };
 
-        const updateBill = () => {
+        function updateBill() {
             if(!currentFile) return;
             const isColor = document.querySelector('input[name="colorMode"]:checked').value === 'color';
-            const paperSize = document.querySelector('input[name="paperSize"]:checked').value;
             const copies = parseInt(document.getElementById('setting-copies').value);
-            const baseRate = isColor ? shopRates.color : shopRates.bw;
-            const multiplier = paperSize === 'A3' ? 2 : 1;
-            const total = simulatedPageCount * baseRate * multiplier * copies;
+            const total = simulatedPageCount * (isColor ? shopRates.color : shopRates.bw) * copies;
             
             document.getElementById('bill-empty').classList.add('hidden');
             document.getElementById('bill-details').classList.remove('hidden');
-            document.getElementById('bill-pages').textContent = simulatedPageCount;
             document.getElementById('bill-copies').textContent = copies;
             document.getElementById('bill-ratetype').textContent = isColor ? 'Color' : 'B&W';
             document.getElementById('bill-total').textContent = total;
-        };
+        }
 
         document.querySelectorAll('input[name="colorMode"], input[name="paperSize"]').forEach(el => el.onchange = updateBill);
-        document.getElementById('btn-minus').onclick = () => { 
-            let v = parseInt(document.getElementById('setting-copies').value); 
-            if(v > 1) { document.getElementById('setting-copies').value = v - 1; updateBill(); }
-        };
         document.getElementById('btn-plus').onclick = () => { 
-            let v = parseInt(document.getElementById('setting-copies').value); 
-            if(v < 100) { document.getElementById('setting-copies').value = v + 1; updateBill(); }
+            let val = Number(document.getElementById('setting-copies').value);
+            if(val < 100) {
+                document.getElementById('setting-copies').value = val + 1; 
+                updateBill(); 
+            }
+        };
+        document.getElementById('btn-minus').onclick = () => { 
+            let val = Number(document.getElementById('setting-copies').value);
+            if(val > 1) { 
+                document.getElementById('setting-copies').value = val - 1; 
+                updateBill(); 
+            } 
         };
 
-        // Submit Order Logic
+        // Concurrent Token Generation with Atomic Reset
+        async function getNextToken() {
+            const today = new Date().toISOString().split('T')[0];
+            const counterRef = doc(db, 'artifacts', appId, 'public', 'data', 'counters', `${currentShopId}_${today}`);
+            try {
+                let token = 1;
+                await runTransaction(db, async (transaction) => {
+                    const snap = await transaction.get(counterRef);
+                    if (snap.exists()) {
+                        token = snap.data().lastToken + 1;
+                        transaction.update(counterRef, { lastToken: token });
+                    } else {
+                        transaction.set(counterRef, { lastToken: 1, shopId: currentShopId, date: today });
+                    }
+                });
+                return token;
+            } catch (e) { return Math.floor(Math.random() * 900) + 100; }
+        }
+
+        // Order Submission
         document.getElementById('btn-submit').onclick = async () => {
-            if(!user) return;
             const btn = document.getElementById('btn-submit');
-            const originalHTML = btn.innerHTML;
             btn.innerHTML = `<i data-lucide="loader-2" class="w-5 h-5 animate-spin"></i> Processing...`;
             btn.disabled = true;
             lucide.createIcons();
 
             try {
-                const uniqueFileName = `${Date.now()}_${currentFile.name.replace(/[^a-z0-9.]/gi, '_').toLowerCase()}`;
-                const storagePath = `uploads/${currentShopId}/${uniqueFileName}`;
+                const cleanName = currentFile.name.replace(/[^a-z0-9.]/gi, '_');
+                const storagePath = `uploads/${currentShopId}/${Date.now()}_${cleanName}`;
                 const storageRef = ref(storage, storagePath);
-                
                 const uploadTask = uploadBytesResumable(storageRef, currentFile);
 
                 uploadTask.on('state_changed', null, (err) => {
-                    showPopup("Upload Error", "File upload nahi ho payi. Dobara koshish karein.", "error");
-                    btn.innerHTML = originalHTML; btn.disabled = false; lucide.createIcons();
+                    console.error(err);
+                    showPopup("Upload Failed", "Failed to upload document. Please try again.", "error");
+                    btn.innerHTML = `Submit Order <i data-lucide="send" class="w-4 h-4"></i>`;
+                    btn.disabled = false;
+                    lucide.createIcons();
                 }, async () => {
-                    const downloadURL = await getDownloadURL(uploadTask.snapshot.ref);
-                    const tokenNum = await getNextToken();
-                    const expiry = Date.now() + (globalSettings.autoDeleteHours * 60 * 60 * 1000);
+                    const url = await getDownloadURL(uploadTask.snapshot.ref);
+                    const token = await getNextToken();
                     
-                    // Firestore path Rule 1
                     await addDoc(collection(db, 'artifacts', appId, 'public', 'data', 'prints'), {
-                        shopId: currentShopId, customerId: user.uid,
-                        token: tokenNum, fileName: currentFile.name,
-                        fileUrl: downloadURL, filePath: storagePath,
+                        shopId: currentShopId, token, fileName: currentFile.name,
+                        fileUrl: url, filePath: storagePath,
                         settings: {
                             colorMode: document.querySelector('input[name="colorMode"]:checked').value,
                             paperSize: document.querySelector('input[name="paperSize"]:checked').value,
-                            copies: parseInt(document.getElementById('setting-copies').value),
-                            notes: document.getElementById('special-notes').value || ""
+                            copies: parseInt(document.getElementById('setting-copies').value)
                         },
                         billEstimate: document.getElementById('bill-total').textContent,
-                        status: "Pending", createdAt: Date.now(), expiresAt: expiry
+                        status: "Pending", createdAt: Date.now()
                     });
 
-                    // Update memory
-                    localStorage.setItem('smartXerox_lastOrder', JSON.stringify({ token: tokenNum, fileName: currentFile.name, timestamp: Date.now() }));
-                    document.getElementById('final-token').textContent = `#${tokenNum}`;
+                    localStorage.setItem('smartXerox_lastOrder', JSON.stringify({ token, fileName: currentFile.name, timestamp: Date.now() }));
+                    document.getElementById('final-token').textContent = `#${token}`;
                     document.getElementById('success-modal').classList.remove('hidden');
                 });
-            } catch(e) {
+            } catch(e) { 
                 console.error(e);
-                showPopup("Error", "Order process karne mein dikkat aayi.", "error");
-                btn.innerHTML = originalHTML; btn.disabled = false; lucide.createIcons();
+                showPopup("Submission Error", "There was an error processing your order.", "error"); 
+                btn.disabled = false; 
             }
         };
 
-        const checkPreviousOrder = () => {
+        function checkPreviousOrder() {
             const saved = localStorage.getItem('smartXerox_lastOrder');
             if (saved) {
                 const o = JSON.parse(saved);
-                if (Date.now() - o.timestamp < (globalSettings.autoDeleteHours * 3600000)) {
+                if (Date.now() - o.timestamp < 3 * 3600000) {
                     document.getElementById('rec-token').textContent = `#${o.token}`;
                     document.getElementById('rec-filename').textContent = o.fileName;
                     document.getElementById('recovery-banner').classList.remove('hidden');
                 }
             }
-        };
+        }
 
-        document.getElementById('btn-close-recovery').onclick = () => document.getElementById('recovery-banner').classList.add('hidden');
-        document.getElementById('btn-reset-app').onclick = () => location.reload();
-        
+        lucide.createIcons();
     </script>
 </body>
 </html>
