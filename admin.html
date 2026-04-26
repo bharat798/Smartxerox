@@ -4,579 +4,365 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Smart Xerox | Super Admin Panel</title>
-    <!-- Tailwind CSS -->
     <script src="https://cdn.tailwindcss.com"></script>
-    <!-- Lucide Icons -->
     <script src="https://unpkg.com/lucide@latest"></script>
-    <!-- 🟢 FIXED: Updated QR Code Library CDN 🟢 -->
-    <script src="https://cdn.jsdelivr.net/gh/davidshimjs/qrcodejs/qrcode.min.js"></script>
     <style>
         @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap');
         body { font-family: 'Inter', sans-serif; background-color: #f8fafc; }
-        
-        ::-webkit-scrollbar { width: 6px; height: 6px; }
-        ::-webkit-scrollbar-track { background: transparent; }
-        ::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 10px; }
-        ::-webkit-scrollbar-thumb:hover { background: #94a3b8; }
-
-        .view-section { display: none; animation: fadeIn 0.3s ease-out; }
-        .view-section.active { display: block; }
-        
+        .view-section { display: none; }
+        .view-section.active { display: block; animation: fadeIn 0.3s ease-out; }
         @keyframes fadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
-        @keyframes modalShow { from { opacity: 0; transform: scale(0.95); } to { opacity: 1; transform: scale(1); } }
-        
-        .modal-content { animation: modalShow 0.2s ease-out forwards; }
+        .modal-animate { animation: bounceIn 0.3s cubic-bezier(0.68, -0.55, 0.27, 1.55) forwards; }
+        @keyframes bounceIn { from { opacity: 0; transform: scale(0.9); } to { opacity: 1; transform: scale(1); } }
+        ::-webkit-scrollbar { width: 5px; }
+        ::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 10px; }
     </style>
 </head>
-<body class="text-slate-800 h-screen flex overflow-hidden">
+<body class="text-slate-800 antialiased min-h-screen flex flex-col">
 
-    <div id="mobile-overlay" class="fixed inset-0 bg-slate-900/50 z-20 hidden lg:hidden" onclick="toggleSidebar()"></div>
-
-    <aside id="sidebar" class="bg-slate-900 text-slate-300 w-64 flex-shrink-0 flex flex-col h-full fixed lg:relative z-30 transition-transform duration-300 -translate-x-full lg:translate-x-0 shadow-xl">
-        <div class="h-16 flex items-center px-6 border-b border-slate-800 text-white font-bold text-xl gap-2">
-            <div class="bg-blue-600 p-1.5 rounded-lg">
-                <i data-lucide="shield-check" class="w-5 h-5 text-white"></i>
-            </div>
-            Smart<span class="text-blue-500">Admin</span>
-            <button class="lg:hidden ml-auto text-slate-400 hover:text-white" onclick="toggleSidebar()">
-                <i data-lucide="x" class="w-5 h-5"></i>
-            </button>
-        </div>
-
-        <nav class="flex-1 overflow-y-auto py-6 px-4">
-            <div class="text-xs font-bold text-slate-500 uppercase tracking-wider mb-3 px-2">Main Menu</div>
-            <ul class="space-y-1">
-                <li>
-                    <button onclick="switchView('dashboard', this)" class="nav-item w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-colors bg-blue-600 text-white shadow-sm">
-                        <i data-lucide="layout-dashboard" class="w-5 h-5"></i> Dashboard Overview
-                    </button>
-                </li>
-                <li>
-                    <button onclick="switchView('shops', this)" class="nav-item w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-colors hover:bg-slate-800 hover:text-white">
-                        <i data-lucide="store" class="w-5 h-5"></i> Manage Shops
-                    </button>
-                </li>
-                <li>
-                    <button onclick="switchView('reports', this)" class="nav-item w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-colors hover:bg-slate-800 hover:text-white">
-                        <i data-lucide="bar-chart-3" class="w-5 h-5"></i> System Reports
-                    </button>
-                </li>
-            </ul>
-
-            <div class="text-xs font-bold text-slate-500 uppercase tracking-wider mb-3 px-2 mt-8">Settings</div>
-            <ul class="space-y-1">
-                <li>
-                    <button onclick="switchView('settings', this)" class="nav-item w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-colors hover:bg-slate-800 hover:text-white">
-                        <i data-lucide="settings" class="w-5 h-5"></i> Global Configuration
-                    </button>
-                </li>
-            </ul>
-        </nav>
-
-        <div class="p-4 border-t border-slate-800 bg-slate-900/50">
-            <div class="flex items-center gap-3">
-                <div class="w-10 h-10 rounded-full bg-blue-500 flex items-center justify-center text-white font-bold shadow-inner">SA</div>
-                <div class="flex-1 min-w-0">
-                    <p class="text-sm font-bold text-white truncate">Super Admin</p>
-                    <p id="admin-user-email" class="text-[11px] text-slate-400 truncate">Loading...</p>
+    <!-- Header -->
+    <header class="bg-white border-b border-slate-200 sticky top-0 z-30 shadow-sm px-6">
+        <div class="max-w-7xl mx-auto h-16 flex items-center justify-between">
+            <div class="flex items-center gap-2.5">
+                <div class="bg-slate-900 p-2 rounded-xl">
+                    <i data-lucide="shield-check" class="w-5 h-5 text-white"></i>
                 </div>
-                <button id="btn-logout" class="p-2 text-slate-400 hover:text-red-400 hover:bg-slate-800 rounded-lg transition-colors" title="Logout">
-                    <i data-lucide="log-out" class="w-4 h-4"></i>
-                </button>
-            </div>
-        </div>
-    </aside>
-
-    <main class="flex-1 flex flex-col h-full overflow-hidden relative">
-        <header class="h-16 bg-white border-b border-slate-200 flex items-center justify-between px-4 sm:px-8 z-10 shadow-sm">
-            <div class="flex items-center gap-3">
-                <button class="lg:hidden text-slate-500 hover:text-slate-800 p-1" onclick="toggleSidebar()">
-                    <i data-lucide="menu" class="w-6 h-6"></i>
-                </button>
-                <h2 class="text-lg font-bold text-slate-800 hidden sm:block" id="topbar-title">Dashboard Overview</h2>
+                <h1 class="font-black text-xl text-slate-900 tracking-tight italic">Admin<span class="text-blue-600">Console</span></h1>
             </div>
             <div class="flex items-center gap-4">
-                <div class="relative cursor-pointer" onclick="showToast('No new notifications')">
-                    <i data-lucide="bell" class="w-5 h-5 text-slate-500 hover:text-slate-800 transition-colors"></i>
+                <div id="admin-status" class="text-[10px] font-black bg-emerald-50 text-emerald-600 px-3 py-1.5 rounded-full border border-emerald-100 uppercase tracking-widest flex items-center gap-1.5">
+                    <span class="w-1.5 h-1.5 bg-emerald-500 rounded-full animate-ping"></span> System Live
+                </div>
+                <button id="btn-logout" class="text-slate-400 hover:text-red-500 transition-colors">
+                    <i data-lucide="log-out" class="w-5 h-5"></i>
+                </button>
+            </div>
+        </div>
+    </header>
+
+    <!-- App State Screen -->
+    <div id="loading-state" class="flex-1 flex flex-col items-center justify-center p-6 text-center mt-20">
+        <div class="w-12 h-12 border-4 border-blue-100 border-t-blue-600 rounded-full animate-spin mb-4"></div>
+        <h2 class="text-lg font-bold text-slate-800">Loading Management Data...</h2>
+    </div>
+
+    <!-- Main Content -->
+    <main id="app-main" class="hidden flex-1 max-w-7xl mx-auto w-full p-6 space-y-8">
+        
+        <!-- Stats Grid -->
+        <div class="grid grid-cols-1 md:grid-cols-4 gap-6">
+            <div class="bg-white p-6 rounded-[2rem] border border-slate-200 shadow-sm">
+                <p class="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1">Total Shops</p>
+                <h3 class="text-3xl font-black text-slate-900" id="stat-shops">0</h3>
+            </div>
+            <div class="bg-white p-6 rounded-[2rem] border border-slate-200 shadow-sm">
+                <p class="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1">Total Prints (Life)</p>
+                <h3 class="text-3xl font-black text-blue-600" id="stat-prints">0</h3>
+            </div>
+            <div class="bg-gradient-to-br from-blue-600 to-indigo-700 p-6 rounded-[2.5rem] text-white shadow-xl shadow-blue-100">
+                <p class="text-[10px] font-black text-blue-100 uppercase tracking-widest mb-1">Total System Revenue</p>
+                <h3 class="text-3xl font-black">₹<span id="stat-revenue">0</span></h3>
+            </div>
+            <div class="bg-white p-6 rounded-[2rem] border border-slate-200 shadow-sm flex items-center justify-center">
+                <button onclick="window.openAddShop()" class="w-full h-full flex flex-col items-center justify-center gap-2 group transition-all">
+                    <div class="w-10 h-10 bg-blue-50 text-blue-600 rounded-full flex items-center justify-center group-hover:scale-110 transition-transform"><i data-lucide="plus" class="w-6 h-6"></i></div>
+                    <span class="text-xs font-black text-slate-500 uppercase tracking-widest">Register New Shop</span>
+                </button>
+            </div>
+        </div>
+
+        <!-- Shops List Table -->
+        <div class="bg-white rounded-[2.5rem] border border-slate-200 shadow-sm overflow-hidden">
+            <div class="px-8 py-6 border-b border-slate-100 flex items-center justify-between">
+                <h2 class="font-black text-slate-800 text-sm uppercase tracking-widest">Registered Shop Partners</h2>
+                <div class="relative">
+                    <input type="text" id="shop-search" placeholder="Search shops..." class="bg-slate-50 border border-slate-200 rounded-xl px-4 py-2 text-xs outline-none focus:ring-2 focus:ring-blue-500 w-64">
                 </div>
             </div>
-        </header>
-
-        <div class="flex-1 overflow-y-auto p-4 sm:p-8">
-            <div id="view-dashboard" class="view-section active max-w-7xl mx-auto">
-                <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 sm:gap-6 mb-8">
-                    <div class="bg-white rounded-xl shadow-sm border border-slate-200 p-5 flex items-center gap-4 hover:shadow-md transition-shadow">
-                        <div class="w-12 h-12 rounded-lg bg-blue-50 text-blue-600 flex items-center justify-center shrink-0">
-                            <i data-lucide="store" class="w-6 h-6"></i>
-                        </div>
-                        <div>
-                            <p class="text-sm font-medium text-slate-500">Total Registered Shops</p>
-                            <h3 class="text-2xl font-black text-slate-800" id="stat-total-shops">0</h3>
-                        </div>
-                    </div>
-                    <div class="bg-white rounded-xl shadow-sm border border-slate-200 p-5 flex items-center gap-4 hover:shadow-md transition-shadow">
-                        <div class="w-12 h-12 rounded-lg bg-emerald-50 text-emerald-600 flex items-center justify-center shrink-0">
-                            <i data-lucide="file-check-2" class="w-6 h-6"></i>
-                        </div>
-                        <div>
-                            <p class="text-sm font-medium text-slate-500">Total Documents Printed</p>
-                            <h3 class="text-2xl font-black text-slate-800" id="stat-total-docs">0</h3>
-                        </div>
-                    </div>
-                    <div class="bg-white rounded-xl shadow-sm border border-slate-200 p-5 flex items-center gap-4 hover:shadow-md transition-shadow">
-                        <div class="w-12 h-12 rounded-lg bg-purple-50 text-purple-600 flex items-center justify-center shrink-0">
-                            <i data-lucide="users" class="w-6 h-6"></i>
-                        </div>
-                        <div>
-                            <p class="text-sm font-medium text-slate-500">Unique Customers</p>
-                            <h3 class="text-2xl font-black text-slate-800" id="stat-unique-customers">0</h3>
-                        </div>
-                    </div>
-                    <div class="bg-white rounded-xl shadow-sm border border-slate-200 p-5 flex items-center gap-4 hover:shadow-md transition-shadow">
-                        <div class="w-12 h-12 rounded-lg bg-amber-50 text-amber-600 flex items-center justify-center shrink-0">
-                            <i data-lucide="activity" class="w-6 h-6"></i>
-                        </div>
-                        <div>
-                            <p class="text-sm font-medium text-slate-500">Active Shops Today</p>
-                            <h3 class="text-2xl font-black text-slate-800" id="stat-active-shops">0</h3>
-                        </div>
-                    </div>
-                </div>
-            </div>
-
-            <div id="view-shops" class="view-section max-w-7xl mx-auto">
-                <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-6">
-                    <div>
-                        <h2 class="text-xl font-bold text-slate-800">Registered Partner Shops</h2>
-                        <p class="text-sm text-slate-500">Manage shop accounts, generate passwords, and QR codes.</p>
-                    </div>
-                    <button onclick="openModal('add-shop-modal')" class="bg-blue-600 hover:bg-blue-700 text-white px-5 py-2.5 rounded-lg font-semibold shadow-sm shadow-blue-600/20 transition-all flex items-center gap-2 shrink-0">
-                        <i data-lucide="plus" class="w-5 h-5"></i> Add New Shop
-                    </button>
-                </div>
-
-                <div class="bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden">
-                    <div class="overflow-x-auto">
-                        <table class="w-full text-left border-collapse">
-                            <thead>
-                                <tr class="bg-slate-50 border-b border-slate-200 text-xs uppercase tracking-wider text-slate-500 font-bold">
-                                    <th class="p-4 whitespace-nowrap">Shop Details</th>
-                                    <th class="p-4 whitespace-nowrap">Owner Contact</th>
-                                    <th class="p-4 text-center whitespace-nowrap">QR Code</th>
-                                    <th class="p-4">Status</th>
-                                    <th class="p-4 text-right whitespace-nowrap">Actions</th>
-                                </tr>
-                            </thead>
-                            <tbody id="shops-table-body" class="divide-y divide-slate-100 text-sm text-slate-700">
-                                <tr><td colspan="5" class="p-8 text-center text-slate-400">Loading shops...</td></tr>
-                            </tbody>
-                        </table>
-                    </div>
-                </div>
-            </div>
-
-            <div id="view-reports" class="view-section max-w-7xl mx-auto">
-                <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-6">
-                    <div>
-                        <h2 class="text-xl font-bold text-slate-800">System Reports</h2>
-                        <p class="text-sm text-slate-500">Analytics and performance tracking for all shops.</p>
-                    </div>
-                </div>
-                <div class="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-6">
-                    <div class="bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden">
-                        <div class="px-6 py-4 border-b border-slate-100"><h3 class="font-bold text-slate-800">Top Performing Shops</h3></div>
-                        <div class="p-0" id="top-shops-container">
-                            <div class="p-8 text-center text-slate-400">Loading real-time data...</div>
-                        </div>
-                    </div>
-                    <div class="bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden flex flex-col">
-                        <div class="px-6 py-4 border-b border-slate-100"><h3 class="font-bold text-slate-800">Document Type Breakdown</h3></div>
-                        <div class="p-6 flex-1 flex flex-col justify-center gap-6" id="doc-types-container">
-                            <div class="text-center text-slate-400">Loading real-time data...</div>
-                        </div>
-                    </div>
-                </div>
-            </div>
-
-            <div id="view-settings" class="view-section max-w-7xl mx-auto">
-                <div class="mb-6">
-                    <h2 class="text-xl font-bold text-slate-800">Global Configuration</h2>
-                    <p class="text-sm text-slate-500">Manage default rules for customer uploads.</p>
-                </div>
-                <div class="bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden max-w-3xl">
-                    <div class="p-6 space-y-8">
-                        <div>
-                            <h3 class="text-base font-bold text-slate-800 mb-4 border-b border-slate-100 pb-2">Storage & Security Rules</h3>
-                            <div class="grid grid-cols-1 sm:grid-cols-2 gap-6">
-                                <div>
-                                    <label class="block text-sm font-semibold text-slate-700 mb-1">Max File Size (MB)</label>
-                                    <input type="number" id="setting-max-size" value="25" class="w-full border border-slate-300 rounded-lg px-4 py-2 focus:ring-2 focus:ring-blue-500 outline-none">
-                                </div>
-                                <div>
-                                    <label class="block text-sm font-semibold text-slate-700 mb-1">Default Auto-Delete Timer (Hours)</label>
-                                    <input type="number" id="setting-auto-delete" value="3" class="w-full border border-slate-300 rounded-lg px-4 py-2 focus:ring-2 focus:ring-blue-500 outline-none">
-                                </div>
-                            </div>
-                        </div>
-                        <div class="pt-4 border-t border-slate-100 flex justify-end">
-                            <button onclick="saveGlobalSettings()" class="bg-blue-600 hover:bg-blue-700 text-white font-bold py-2.5 px-6 rounded-lg transition-colors shadow-sm">
-                                Save Settings
-                            </button>
-                        </div>
-                    </div>
-                </div>
+            <div class="overflow-x-auto">
+                <table class="w-full text-left border-collapse">
+                    <thead class="bg-slate-50 text-[10px] font-black uppercase text-slate-400 border-b border-slate-100">
+                        <tr>
+                            <th class="px-8 py-4">Shop Details</th>
+                            <th class="px-8 py-4">Current Rates (B&W / Color)</th>
+                            <th class="px-8 py-4 text-center">Total Revenue</th>
+                            <th class="px-8 py-4 text-right">Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody id="shop-list-body" class="text-sm divide-y divide-slate-50 font-medium">
+                        <!-- Shops dynamically loaded -->
+                    </tbody>
+                </table>
             </div>
         </div>
     </main>
 
-    <!-- MODAL: ADD SHOP -->
-    <div id="add-shop-modal" class="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-50 hidden flex items-center justify-center p-4">
-        <div class="bg-white rounded-2xl shadow-2xl w-full max-w-2xl modal-content flex flex-col max-h-[90vh]">
-            <div class="px-6 py-4 border-b border-slate-100 flex items-center justify-between shrink-0">
-                <h3 class="font-bold text-lg text-slate-800 flex items-center gap-2">
-                    <i data-lucide="store" class="w-5 h-5 text-blue-600"></i> Register New Shop
-                </h3>
-                <button onclick="closeModal('add-shop-modal')" class="text-slate-400 hover:text-slate-700 p-1 rounded-md transition-colors">
-                    <i data-lucide="x" class="w-5 h-5"></i>
-                </button>
+    <!-- ADD/EDIT SHOP MODAL -->
+    <div id="shop-modal" class="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-[100] hidden flex items-center justify-center p-4">
+        <div class="bg-white rounded-[3rem] shadow-2xl max-w-lg w-full p-10 modal-animate overflow-y-auto max-h-[90vh]">
+            <div class="flex items-center justify-between mb-8">
+                <h3 id="modal-title" class="text-2xl font-black text-slate-800 tracking-tight">Register New Shop</h3>
+                <button onclick="window.closeShopModal()" class="p-2 bg-slate-50 rounded-xl hover:bg-red-50 hover:text-red-500 transition-all"><i data-lucide="x" class="w-5 h-5"></i></button>
             </div>
-            <div class="p-6 overflow-y-auto">
-                <form id="add-shop-form" class="space-y-5" onsubmit="handleFormSubmit(event)">
-                    <div class="grid grid-cols-1 sm:grid-cols-2 gap-5">
-                        <div class="sm:col-span-2">
-                            <label class="block text-xs font-bold text-slate-600 uppercase mb-1.5">Shop Name *</label>
-                            <input type="text" id="form-shopName" required class="w-full border border-slate-300 rounded-lg px-4 py-2.5 focus:ring-2 focus:ring-blue-500 outline-none transition-all">
-                        </div>
-                        <div>
-                            <label class="block text-xs font-bold text-slate-600 uppercase mb-1.5">Owner Name *</label>
-                            <input type="text" id="form-ownerName" required class="w-full border border-slate-300 rounded-lg px-4 py-2.5 focus:ring-2 focus:ring-blue-500 outline-none transition-all">
-                        </div>
-                        <div>
-                            <label class="block text-xs font-bold text-slate-600 uppercase mb-1.5">Phone Number *</label>
-                            <input type="tel" id="form-phone" required class="w-full border border-slate-300 rounded-lg px-4 py-2.5 focus:ring-2 focus:ring-blue-500 outline-none transition-all">
-                        </div>
-                        <div class="sm:col-span-2">
-                            <label class="block text-xs font-bold text-slate-600 uppercase mb-1.5">Login Email *</label>
-                            <input type="email" id="form-email" required class="w-full border border-slate-300 rounded-lg px-4 py-2.5 focus:ring-2 focus:ring-blue-500 outline-none transition-all">
-                        </div>
-                        <div class="sm:col-span-2">
-                            <label class="block text-xs font-bold text-slate-600 uppercase mb-1.5">Shop Address</label>
-                            <input type="text" id="form-address" class="w-full border border-slate-300 rounded-lg px-4 py-2.5 focus:ring-2 focus:ring-blue-500 outline-none transition-all">
-                        </div>
+            
+            <div class="space-y-6">
+                <!-- Basic Info -->
+                <div class="grid grid-cols-2 gap-4">
+                    <div class="col-span-2">
+                        <label class="block text-[10px] font-black text-slate-400 uppercase mb-2 tracking-widest">Shop Name</label>
+                        <input type="text" id="m-shop-name" class="w-full bg-slate-50 border border-slate-200 rounded-2xl px-5 py-4 font-bold text-slate-800 outline-none focus:ring-2 focus:ring-blue-500">
                     </div>
-                    <div class="flex justify-end gap-3 pt-4 border-t border-slate-100">
-                        <button type="button" onclick="closeModal('add-shop-modal')" class="px-5 py-2.5 rounded-lg font-semibold text-slate-600 bg-white border border-slate-300 hover:bg-slate-50 transition-colors">Cancel</button>
-                        <button type="submit" id="btn-save-shop" class="px-5 py-2.5 rounded-lg font-semibold text-white bg-blue-600 hover:bg-blue-700 shadow-sm transition-colors">Register Shop</button>
+                    <div>
+                        <label class="block text-[10px] font-black text-slate-400 uppercase mb-2 tracking-widest">Owner Name</label>
+                        <input type="text" id="m-owner-name" class="w-full bg-slate-50 border border-slate-200 rounded-2xl px-5 py-4 font-bold text-slate-800 outline-none focus:ring-2 focus:ring-blue-500">
                     </div>
-                </form>
-            </div>
-        </div>
-    </div>
-
-    <!-- MODAL: EDIT SHOP -->
-    <div id="edit-shop-modal" class="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-50 hidden flex items-center justify-center p-4">
-        <div class="bg-white rounded-2xl shadow-2xl w-full max-w-2xl modal-content flex flex-col max-h-[90vh]">
-            <div class="px-6 py-4 border-b border-slate-100 flex items-center justify-between shrink-0">
-                <h3 class="font-bold text-lg text-slate-800 flex items-center gap-2">
-                    <i data-lucide="edit" class="w-5 h-5 text-blue-600"></i> Edit Shop Details
-                </h3>
-                <button onclick="closeModal('edit-shop-modal')" class="text-slate-400 hover:text-slate-700 p-1 rounded-md transition-colors">
-                    <i data-lucide="x" class="w-5 h-5"></i>
-                </button>
-            </div>
-            <div class="p-6 overflow-y-auto">
-                <form id="edit-shop-form" class="space-y-5" onsubmit="handleEditSubmit(event)">
-                    <input type="hidden" id="edit-shopId">
-                    <div class="grid grid-cols-1 sm:grid-cols-2 gap-5">
-                        <div class="sm:col-span-2">
-                            <label class="block text-xs font-bold text-slate-600 uppercase mb-1.5">Shop Name *</label>
-                            <input type="text" id="edit-shopName" required class="w-full border border-slate-300 rounded-lg px-4 py-2.5 focus:ring-2 focus:ring-blue-500 outline-none">
-                        </div>
-                        <div>
-                            <label class="block text-xs font-bold text-slate-600 uppercase mb-1.5">Owner Name *</label>
-                            <input type="text" id="edit-ownerName" required class="w-full border border-slate-300 rounded-lg px-4 py-2.5 focus:ring-2 focus:ring-blue-500 outline-none">
-                        </div>
-                        <div>
-                            <label class="block text-xs font-bold text-slate-600 uppercase mb-1.5">Phone Number *</label>
-                            <input type="tel" id="edit-phone" required class="w-full border border-slate-300 rounded-lg px-4 py-2.5 focus:ring-2 focus:ring-blue-500 outline-none">
-                        </div>
-                        <div class="sm:col-span-2">
-                            <label class="block text-xs font-bold text-slate-600 uppercase mb-1.5">Shop Address</label>
-                            <input type="text" id="edit-address" class="w-full border border-slate-300 rounded-lg px-4 py-2.5 focus:ring-2 focus:ring-blue-500 outline-none">
-                        </div>
-                        <div class="sm:col-span-2">
-                            <label class="block text-xs font-bold text-slate-600 uppercase mb-1.5">Account Status</label>
-                            <select id="edit-status" class="w-full border border-slate-300 rounded-lg px-4 py-2.5 focus:ring-2 focus:ring-blue-500 outline-none">
-                                <option value="active">Active</option>
-                                <option value="inactive">Inactive</option>
-                            </select>
-                        </div>
+                    <div>
+                        <label class="block text-[10px] font-black text-slate-400 uppercase mb-2 tracking-widest">Shop ID (Unique)</label>
+                        <input type="text" id="m-shop-id" class="w-full bg-slate-50 border border-slate-200 rounded-2xl px-5 py-4 font-bold text-slate-800 outline-none focus:ring-2 focus:ring-blue-500">
                     </div>
-                    <div class="flex justify-end gap-3 pt-4 border-t border-slate-100">
-                        <button type="button" onclick="closeModal('edit-shop-modal')" class="px-5 py-2.5 rounded-lg font-semibold text-slate-600 bg-white border border-slate-300 hover:bg-slate-50 transition-colors">Cancel</button>
-                        <button type="submit" id="btn-edit-shop" class="px-5 py-2.5 rounded-lg font-semibold text-white bg-blue-600 hover:bg-blue-700 shadow-sm transition-colors">Save Changes</button>
-                    </div>
-                </form>
-            </div>
-        </div>
-    </div>
-
-    <!-- MODAL: SHOW CREDENTIALS & QR -->
-    <div id="credentials-modal" class="fixed inset-0 bg-slate-900/80 backdrop-blur-sm z-50 hidden flex items-center justify-center p-4">
-        <div class="bg-white rounded-3xl shadow-2xl w-full max-w-md modal-content text-center overflow-hidden">
-            <div class="bg-slate-900 py-6 px-4 relative">
-                <button onclick="closeModal('credentials-modal')" class="absolute top-4 right-4 text-slate-400 hover:text-white"><i data-lucide="x" class="w-5 h-5"></i></button>
-                <div class="w-14 h-14 bg-blue-600 rounded-2xl flex items-center justify-center mx-auto mb-3 shadow-lg border-2 border-white/10"><i data-lucide="qr-code" class="w-7 h-7 text-white"></i></div>
-                <h3 class="font-bold text-xl text-white mb-1" id="qr-shop-name">Shop Credentials</h3>
-            </div>
-            <div class="p-6">
-                <div id="qr-canvas" class="mx-auto border-2 border-slate-200 rounded-xl p-2 flex justify-center bg-white items-center mb-4" style="width: 176px; height: 176px;"></div>
-                <div class="bg-slate-50 border border-slate-200 rounded-xl p-4 text-left mb-6 space-y-2">
-                    <div><span class="text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-1">Login Email:</span><br><span class="font-mono font-bold text-blue-600 text-sm" id="cred-email"></span></div>
-                    <div><span class="text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-1">Generated Password:</span><br><span class="font-mono font-bold text-slate-800 text-sm" id="cred-pass"></span></div>
                 </div>
-                <div class="grid grid-cols-1 gap-3">
-                    <button onclick="closeModal('credentials-modal')" class="bg-slate-900 hover:bg-slate-800 text-white font-bold py-3 px-4 rounded-xl transition-colors">Done</button>
+
+                <div class="h-px bg-slate-100 my-4"></div>
+
+                <!-- 🟢 PRICING TIERS (MATCHING NEW LOGIC) 🟢 -->
+                <div>
+                    <label class="block text-[10px] font-black text-slate-400 uppercase mb-4 tracking-widest">Pricing Tiers & Rates</label>
+                    <div class="bg-blue-50 p-5 rounded-[2rem] border border-blue-100 mb-6 flex items-center justify-between">
+                        <span class="text-xs font-bold text-blue-900">Bulk Tier Threshold (Pages)</span>
+                        <input type="number" id="m-tier-threshold" value="3" class="w-20 bg-white border border-blue-200 rounded-xl px-3 py-2 font-black text-center outline-none">
+                    </div>
+                    
+                    <div class="grid grid-cols-2 gap-6">
+                        <div class="space-y-4">
+                            <h4 class="text-[10px] font-black text-slate-800 uppercase tracking-tighter">Black & White</h4>
+                            <input type="number" step="0.01" id="m-bw-rate" placeholder="Normal ₹" class="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-3 font-bold">
+                            <input type="number" step="0.01" id="m-bw-bulk" placeholder="Bulk ₹" class="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-3 font-bold">
+                        </div>
+                        <div class="space-y-4">
+                            <h4 class="text-[10px] font-black text-slate-800 uppercase tracking-tighter">Full Color</h4>
+                            <input type="number" step="0.01" id="m-color-rate" placeholder="Normal ₹" class="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-3 font-bold">
+                            <input type="number" step="0.01" id="m-color-bulk" placeholder="Bulk ₹" class="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-3 font-bold">
+                        </div>
+                    </div>
                 </div>
+
+                <button id="btn-save-shop" class="w-full bg-blue-600 text-white font-black py-5 rounded-[2rem] shadow-xl shadow-blue-100 active:scale-95 transition-all mt-6 text-lg">Save Shop Configuration</button>
             </div>
         </div>
     </div>
 
-    <div id="toast" class="fixed bottom-6 right-6 z-50 flex items-center gap-2 bg-slate-900 text-white px-5 py-3 rounded-xl shadow-2xl text-sm font-medium transition-all duration-300 opacity-0 pointer-events-none translate-y-4">
-        <i data-lucide="check-circle" class="w-5 h-5 text-emerald-400"></i><span id="toast-msg">Notification</span>
+    <!-- TOAST -->
+    <div id="toast" class="fixed top-8 left-1/2 -translate-x-1/2 z-[110] flex items-center gap-4 bg-slate-900 text-white px-8 py-5 rounded-[2rem] shadow-2xl text-[11px] font-black uppercase tracking-widest transition-all duration-300 opacity-0 pointer-events-none -translate-y-4">
+        <i data-lucide="info" class="w-5 h-5 text-blue-400"></i><span id="toast-msg"></span>
     </div>
 
+    <!-- JS MODULE -->
     <script type="module">
-        import { auth, db, secondaryAuth } from './js/firebase-init.js';
-        import { onAuthStateChanged, signOut, createUserWithEmailAndPassword } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-auth.js";
-        import { collection, doc, setDoc, getDoc, onSnapshot, deleteDoc, updateDoc } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js";
+        import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
+        import { getAuth, signInAnonymously, onAuthStateChanged, signOut } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
+        import { getFirestore, doc, getDoc, setDoc, collection, onSnapshot, query, where, deleteDoc } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
 
-        let localShopsList = [];
+        // Environment Initialization
+        const firebaseConfig = JSON.parse(__firebase_config);
+        const app = initializeApp(firebaseConfig);
+        const auth = getAuth(app);
+        const db = getFirestore(app);
+        const appId = typeof __app_id !== 'undefined' ? __app_id : 'default-app-id';
 
-        window.switchView = (viewId, btnElement) => {
-            document.querySelectorAll('.view-section').forEach(el => el.classList.remove('active'));
-            document.getElementById('view-' + viewId).classList.add('active');
-            document.getElementById('topbar-title').textContent = btnElement.textContent.trim();
-            document.querySelectorAll('.nav-item').forEach(el => el.className = "nav-item w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-colors hover:bg-slate-800 hover:text-white text-slate-300");
-            btnElement.className = "nav-item w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-colors bg-blue-600 text-white shadow-sm";
-            if(window.innerWidth < 1024) document.getElementById('sidebar').classList.toggle('-translate-x-full');
+        let allShops = [];
+        let allAnalytics = [];
+        let editMode = false;
+        let activeShopId = null;
+
+        // ==========================================
+        // 1. SYSTEM INITIALIZATION
+        // ==========================================
+        onAuthStateChanged(auth, async (user) => {
+            if (!user) {
+                await signInAnonymously(auth);
+                return;
+            }
+            bootstrapAdmin();
+        });
+
+        async function bootstrapAdmin() {
+            // Setup Listeners
+            const shopQ = collection(db, 'artifacts', appId, 'public', 'data', 'shops');
+            onSnapshot(shopQ, (snap) => {
+                allShops = [];
+                snap.forEach(d => allShops.push({ ...d.data(), id: d.id }));
+                renderShops();
+            });
+
+            const analyticsQ = collection(db, 'artifacts', appId, 'public', 'data', 'shop_analytics');
+            onSnapshot(analyticsQ, (snap) => {
+                allAnalytics = [];
+                snap.forEach(d => allAnalytics.push(d.data()));
+                calculateGlobalStats();
+                renderShops(); // Refresh revenue in table
+            });
+
+            document.getElementById('loading-state').classList.add('hidden');
+            document.getElementById('app-main').classList.remove('hidden');
             lucide.createIcons();
         }
 
-        window.toggleSidebar = () => {
-            document.getElementById('sidebar').classList.toggle('-translate-x-full');
-            document.getElementById('mobile-overlay').classList.toggle('hidden');
-        }
-
-        const getBaseUrl = () => {
-            let url = window.location.origin + window.location.pathname;
-            return url.substring(0, url.lastIndexOf('/'));
-        };
-
-        onAuthStateChanged(auth, async (user) => {
-            if (user) {
-                const emailEl = document.getElementById('admin-user-email');
-                if(emailEl) emailEl.textContent = user.email;
-
-                renderShopsRealtime();
-                loadGlobalAnalytics();
-                loadGlobalSettings();
-            } else window.location.href = "index.html";
-        });
-
-        document.getElementById('btn-logout').addEventListener('click', () => signOut(auth).then(() => window.location.href = "index.html"));
-
-        async function loadGlobalSettings() {
-            const snap = await getDoc(doc(db, "settings", "global"));
-            if(snap.exists()) {
-                const d = snap.data();
-                if(d.maxFileSize) document.getElementById('setting-max-size').value = d.maxFileSize;
-                if(d.autoDeleteHours) document.getElementById('setting-auto-delete').value = d.autoDeleteHours;
-            }
-        }
-
-        window.saveGlobalSettings = async () => {
-            const maxSize = document.getElementById('setting-max-size').value;
-            const autoDel = document.getElementById('setting-auto-delete').value;
-            try {
-                await setDoc(doc(db, "settings", "global"), {
-                    maxFileSize: Number(maxSize),
-                    autoDeleteHours: Number(autoDel)
-                }, { merge: true });
-                showToast('Global settings saved successfully!');
-            } catch(e) { console.error(e); showToast('Error saving settings'); }
-        }
-
-        function renderShopsRealtime() {
-            onSnapshot(collection(db, "shops"), (snapshot) => {
-                const tbody = document.getElementById('shops-table-body');
-                tbody.innerHTML = ''; localShopsList = [];
-                document.getElementById('stat-total-shops').textContent = snapshot.size;
-
-                if(snapshot.empty) { tbody.innerHTML = `<tr><td colspan="5" class="p-8 text-center text-slate-400">No shops registered yet.</td></tr>`; return; }
-
-                snapshot.forEach(docSnap => {
-                    const shop = docSnap.data(); shop.id = docSnap.id; localShopsList.push(shop);
-                    const statusHtml = shop.status === 'active' ? `<span class="bg-emerald-100 text-emerald-700 px-2.5 py-0.5 rounded-full text-xs font-bold">Active</span>` : `<span class="bg-slate-100 text-slate-600 px-2.5 py-0.5 rounded-full text-xs font-bold">Inactive</span>`;
-                    const tr = document.createElement('tr'); tr.className = "hover:bg-slate-50 transition-colors";
-                    tr.innerHTML = `<td class="p-4"><div class="font-bold text-slate-800">${shop.shopName}</div><div class="text-[11px] text-slate-400 font-mono mt-0.5">ID: ${shop.id}</div></td><td class="p-4"><div class="font-semibold text-slate-700">${shop.ownerName}</div><div class="text-xs text-slate-500">${shop.phone}</div></td><td class="p-4 text-center"><button onclick="openQRModal('${shop.id}')" class="p-2 text-blue-600 hover:bg-blue-50 rounded-lg border border-blue-200 shadow-sm mx-auto flex items-center"><i data-lucide="qr-code" class="w-4 h-4"></i></button></td><td class="p-4">${statusHtml}</td><td class="p-4 text-right"><div class="flex justify-end gap-2"><button onclick="openEditModal('${shop.id}')" class="p-1.5 text-slate-400 hover:text-slate-800 hover:bg-slate-100 rounded-md"><i data-lucide="edit-2" class="w-5 h-5"></i></button><button onclick="deleteShop('${shop.id}')" class="p-1.5 text-slate-400 hover:text-red-600 hover:bg-red-50 rounded-md"><i data-lucide="trash-2" class="w-5 h-5"></i></button></div></td>`;
-                    tbody.appendChild(tr);
-                });
-                lucide.createIcons();
+        function calculateGlobalStats() {
+            let totalRevenue = 0;
+            let totalPrints = 0;
+            allAnalytics.forEach(a => {
+                totalRevenue += (a.revenue || 0);
+                totalPrints += (a.totalTokens || 0);
             });
+            document.getElementById('stat-shops').textContent = allShops.length;
+            document.getElementById('stat-revenue').textContent = totalRevenue.toFixed(1);
+            document.getElementById('stat-prints').textContent = totalPrints;
         }
 
-        function loadGlobalAnalytics() {
-            onSnapshot(collection(db, "prints"), (snapshot) => {
-                let totalDocs = snapshot.size; let uniqueCustomers = new Set(); let activeShops = new Set();
-                let shopPrintCounts = {}; let extCounts = { pdf: 0, image: 0, doc: 0 };
-                snapshot.forEach(docSnap => {
-                    const data = docSnap.data();
-                    if(data.customerId) uniqueCustomers.add(data.customerId);
-                    if(data.shopId) { activeShops.add(data.shopId); shopPrintCounts[data.shopId] = (shopPrintCounts[data.shopId] || 0) + 1; }
-                    if(data.fileName) {
-                        const ext = data.fileName.split('.').pop().toLowerCase();
-                        if(ext === 'pdf') extCounts.pdf++; else if(['jpg','jpeg','png'].includes(ext)) extCounts.image++; else extCounts.doc++;
-                    }
-                });
-                document.getElementById('stat-total-docs').textContent = totalDocs;
-                document.getElementById('stat-unique-customers').textContent = uniqueCustomers.size;
-                document.getElementById('stat-active-shops').textContent = activeShops.size;
-                updateReportsUI(shopPrintCounts, extCounts, totalDocs);
-            });
+        // ==========================================
+        // 2. RENDER LOGIC
+        // ==========================================
+        function renderShops() {
+            const body = document.getElementById('shop-list-body');
+            if(!body) return;
+
+            body.innerHTML = allShops.map(s => {
+                const shopRevenue = allAnalytics
+                    .filter(a => a.shopId === s.id)
+                    .reduce((sum, current) => sum + (current.revenue || 0), 0);
+
+                return `
+                    <tr class="hover:bg-slate-50 transition-colors group">
+                        <td class="px-8 py-5">
+                            <div class="font-black text-slate-900">${s.shopName}</div>
+                            <div class="text-[10px] text-slate-400 uppercase tracking-widest font-bold mt-1">ID: ${s.id} • Owner: ${s.ownerName || 'N/A'}</div>
+                        </td>
+                        <td class="px-8 py-5">
+                            <div class="flex items-center gap-4">
+                                <div class="bg-slate-100 px-3 py-1.5 rounded-lg border border-slate-200">
+                                    <span class="text-[9px] font-black text-slate-400 block uppercase leading-none mb-1">B&W</span>
+                                    <span class="text-xs font-bold text-slate-700">₹${s.bwRate || 2} / ₹${s.bwRateBulk || 1.5}</span>
+                                </div>
+                                <div class="bg-purple-50 px-3 py-1.5 rounded-lg border border-purple-100">
+                                    <span class="text-[9px] font-black text-purple-400 block uppercase leading-none mb-1">Color</span>
+                                    <span class="text-xs font-bold text-purple-700">₹${s.colorRate || 10} / ₹${s.colorRateBulk || 8}</span>
+                                </div>
+                                <div class="bg-blue-50 px-2 py-1 rounded-md border border-blue-100 text-[8px] font-black text-blue-600">
+                                    Bulk @ ${s.tierThreshold || 3}+ Pgs
+                                </div>
+                            </div>
+                        </td>
+                        <td class="px-8 py-5 text-center">
+                            <span class="text-emerald-600 font-black text-lg">₹${shopRevenue.toFixed(1)}</span>
+                        </td>
+                        <td class="px-8 py-5 text-right space-x-2">
+                            <button onclick="window.editShop('${s.id}')" class="p-2.5 bg-slate-100 text-slate-600 rounded-xl hover:bg-slate-900 hover:text-white transition-all"><i data-lucide="edit-3" class="w-4 h-4"></i></button>
+                            <button onclick="window.copyLinks('${s.id}')" class="p-2.5 bg-blue-50 text-blue-600 rounded-xl hover:bg-blue-600 hover:text-white transition-all"><i data-lucide="link" class="w-4 h-4"></i></button>
+                            <button onclick="window.deleteShop('${s.id}')" class="p-2.5 text-slate-300 hover:text-red-500 transition-all"><i data-lucide="trash-2" class="w-4 h-4"></i></button>
+                        </td>
+                    </tr>
+                `;
+            }).join('');
+            lucide.createIcons();
         }
 
-        function updateReportsUI(shopCounts, extCounts, totalDocs) {
-            const topShopsContainer = document.getElementById('top-shops-container');
-            const docTypeContainer = document.getElementById('doc-types-container');
-            if(Object.keys(shopCounts).length === 0) topShopsContainer.innerHTML = '<div class="p-8 text-center text-slate-400">No print data available yet.</div>';
-            else {
-                const sortedShops = Object.keys(shopCounts).sort((a, b) => shopCounts[b] - shopCounts[a]).slice(0, 5);
-                let html = '';
-                sortedShops.forEach((shopId, index) => {
-                    const shopData = localShopsList.find(s => s.id === shopId);
-                    const name = shopData ? shopData.shopName : shopId;
-                    const colorClass = index === 0 ? 'bg-blue-100 text-blue-600' : 'bg-slate-100 text-slate-600';
-                    html += `<div class="flex items-center justify-between p-4 border-b border-slate-50 hover:bg-slate-50"><div class="flex items-center gap-3"><div class="w-8 h-8 rounded-full ${colorClass} flex items-center justify-center font-bold text-xs">${index + 1}</div><div class="font-bold text-slate-800">${name}</div></div><div class="font-bold text-emerald-600">${shopCounts[shopId]} Prints</div></div>`;
-                });
-                topShopsContainer.innerHTML = html;
-            }
-            if(totalDocs > 0) {
-                const pdfPct = Math.round((extCounts.pdf / totalDocs) * 100) || 0; const imgPct = Math.round((extCounts.image / totalDocs) * 100) || 0; const docPct = Math.round((extCounts.doc / totalDocs) * 100) || 0;
-                docTypeContainer.innerHTML = `<div><div class="flex justify-between text-sm mb-1"><span class="font-semibold text-slate-700">PDF Documents</span><span class="text-slate-500">${pdfPct}%</span></div><div class="w-full bg-slate-100 rounded-full h-2.5"><div class="bg-red-500 h-2.5 rounded-full" style="width: ${pdfPct}%"></div></div></div><div><div class="flex justify-between text-sm mb-1"><span class="font-semibold text-slate-700">Images (JPG/PNG)</span><span class="text-slate-500">${imgPct}%</span></div><div class="w-full bg-slate-100 rounded-full h-2.5"><div class="bg-purple-500 h-2.5 rounded-full" style="width: ${imgPct}%"></div></div></div><div><div class="flex justify-between text-sm mb-1"><span class="font-semibold text-slate-700">Word Documents</span><span class="text-slate-500">${docPct}%</span></div><div class="w-full bg-slate-100 rounded-full h-2.5"><div class="bg-blue-500 h-2.5 rounded-full" style="width: ${docPct}%"></div></div></div>`;
-            }
-        }
+        // ==========================================
+        // 3. ACTIONS & MODALS
+        // ==========================================
+        window.openAddShop = () => {
+            editMode = false;
+            activeShopId = null;
+            document.getElementById('modal-title').textContent = "Register New Shop";
+            document.getElementById('m-shop-id').disabled = false;
+            clearModal();
+            document.getElementById('shop-modal').classList.remove('hidden');
+        };
 
-        window.handleFormSubmit = async (e) => {
-            e.preventDefault();
-            const btn = document.getElementById('btn-save-shop'); btn.innerHTML = `Processing...`; btn.disabled = true;
+        window.closeShopModal = () => document.getElementById('shop-modal').classList.add('hidden');
 
-            const shopName = document.getElementById('form-shopName').value;
-            const ownerName = document.getElementById('form-ownerName').value;
-            const phone = document.getElementById('form-phone').value;
-            const address = document.getElementById('form-address').value;
-            const shopEmail = document.getElementById('form-email').value;
+        window.editShop = (id) => {
+            const s = allShops.find(x => x.id === id);
+            if(!s) return;
+            editMode = true;
+            activeShopId = id;
+            document.getElementById('modal-title').textContent = "Update Shop Configuration";
+            document.getElementById('m-shop-name').value = s.shopName;
+            document.getElementById('m-owner-name').value = s.ownerName || "";
+            document.getElementById('m-shop-id').value = s.id;
+            document.getElementById('m-shop-id').disabled = true;
+            document.getElementById('m-tier-threshold').value = s.tierThreshold || 3;
+            document.getElementById('m-bw-rate').value = s.bwRate || 2;
+            document.getElementById('m-bw-bulk').value = s.bwRateBulk || 1.5;
+            document.getElementById('m-color-rate').value = s.colorRate || 10;
+            document.getElementById('m-color-bulk').value = s.colorRateBulk || 8;
+            document.getElementById('shop-modal').classList.remove('hidden');
+        };
 
-            const shopId = shopName.toLowerCase().replace(/[^a-z0-9]/g, '-') + '-' + Math.floor(Math.random() * 1000);
-            const randomPassword = "Pass@" + Math.floor(100000 + Math.random() * 900000);
+        document.getElementById('btn-save-shop').onclick = async () => {
+            const sid = document.getElementById('m-shop-id').value.trim();
+            const sname = document.getElementById('m-shop-name').value.trim();
+            
+            if(!sid || !sname) { showToast("Shop ID and Name are required", "error"); return; }
+
+            const shopData = {
+                shopName: sname,
+                ownerName: document.getElementById('m-owner-name').value.trim(),
+                tierThreshold: parseInt(document.getElementById('m-tier-threshold').value) || 3,
+                bwRate: parseFloat(document.getElementById('m-bw-rate').value) || 2.0,
+                bwRateBulk: parseFloat(document.getElementById('m-bw-bulk').value) || 1.5,
+                colorRate: parseFloat(document.getElementById('m-color-rate').value) || 10.0,
+                colorRateBulk: parseFloat(document.getElementById('m-color-bulk').value) || 8.0,
+                updatedAt: Date.now()
+            };
 
             try {
-                const userCredential = await createUserWithEmailAndPassword(secondaryAuth, shopEmail, randomPassword);
-                await signOut(secondaryAuth);
-                
-                await setDoc(doc(db, "users", userCredential.user.uid), { email: shopEmail, role: "shop", shopId: shopId, isFirstLogin: true });
-                await setDoc(doc(db, "shops", shopId), { uid: userCredential.user.uid, shopName: shopName, ownerName: ownerName, phone: phone, address: address, status: 'active', email: shopEmail, createdAt: Date.now() });
+                await setDoc(doc(db, 'artifacts', appId, 'public', 'data', 'shops', sid), shopData, { merge: true });
+                showToast(editMode ? "Shop updated!" : "Shop registered successfully!", "success");
+                closeShopModal();
+            } catch (e) { showToast("Error saving shop data", "error"); }
+        };
 
-                closeModal('add-shop-modal'); document.getElementById('add-shop-form').reset();
-                showToast('Shop registered successfully!');
-                
-                document.getElementById('cred-email').textContent = shopEmail; document.getElementById('cred-pass').textContent = randomPassword;
-                
-                const baseUrl = getBaseUrl();
-                drawQR(`${baseUrl}/customer.html?shop=${shopId}`);
-                openModal('credentials-modal');
-            } catch (error) { 
-                alert("Error: " + error.message); 
-            } finally { 
-                btn.innerHTML = `Register Shop`; btn.disabled = false; lucide.createIcons(); 
+        window.deleteShop = async (id) => {
+            if(confirm(`Are you sure? All data for shop ${id} will be disconnected.`)) {
+                await deleteDoc(doc(db, 'artifacts', appId, 'public', 'data', 'shops', id));
+                showToast("Shop removed from console.");
             }
         };
 
-        window.openEditModal = (id) => {
-            const shop = localShopsList.find(s => s.id === id);
-            if (!shop) return;
-            document.getElementById('edit-shopId').value = shop.id;
-            document.getElementById('edit-shopName').value = shop.shopName;
-            document.getElementById('edit-ownerName').value = shop.ownerName;
-            document.getElementById('edit-phone').value = shop.phone;
-            document.getElementById('edit-address').value = shop.address || '';
-            document.getElementById('edit-status').value = shop.status || 'active';
-            openModal('edit-shop-modal');
-        }
-
-        window.handleEditSubmit = async (e) => {
-            e.preventDefault();
-            const btn = document.getElementById('btn-edit-shop');
-            btn.innerHTML = `Saving...`; btn.disabled = true;
-
-            const id = document.getElementById('edit-shopId').value;
-            try {
-                await updateDoc(doc(db, "shops", id), {
-                    shopName: document.getElementById('edit-shopName').value,
-                    ownerName: document.getElementById('edit-ownerName').value,
-                    phone: document.getElementById('edit-phone').value,
-                    address: document.getElementById('edit-address').value,
-                    status: document.getElementById('edit-status').value
-                });
-                closeModal('edit-shop-modal');
-                showToast('Shop details updated successfully!');
-            } catch (error) {
-                console.error(error); alert("Update failed.");
-            } finally {
-                btn.innerHTML = `Save Changes`; btn.disabled = false; 
-            }
-        }
-
-        window.deleteShop = async (shopId) => { 
-            if(confirm('Are you sure you want to remove this shop? This cannot be undone.')) {
-                await deleteDoc(doc(db, "shops", shopId)); 
-                showToast('Shop removed from system.');
-            }
+        window.copyLinks = (id) => {
+            const base = window.location.origin + window.location.pathname.replace('admin.html', '');
+            const customer = `${base}customer.html?shop=${id}`;
+            const shop = `${base}shop.html`; // Requires authentication for that shop
+            
+            const el = document.createElement('textarea');
+            el.value = `CUSTOMER URL: ${customer}`;
+            document.body.appendChild(el); el.select(); document.execCommand('copy'); document.body.removeChild(el);
+            showToast("Customer Link copied to clipboard!");
         };
 
-        window.openModal = (id) => document.getElementById(id).classList.remove('hidden');
-        window.closeModal = (id) => document.getElementById(id).classList.add('hidden');
-        
-        window.openQRModal = (shopId) => {
-            const shop = localShopsList.find(s => s.id === shopId);
-            if(!shop) return;
-            document.getElementById('qr-shop-name').textContent = shop.shopName;
-            document.getElementById('cred-email').textContent = shop.email;
-            document.getElementById('cred-pass').textContent = '***** (Hidden)';
-            const url = `${getBaseUrl()}/customer.html?shop=${shop.id}`;
-            drawQR(url);
-            openModal('credentials-modal');
+        function clearModal() {
+            document.getElementById('m-shop-name').value = "";
+            document.getElementById('m-owner-name').value = "";
+            document.getElementById('m-shop-id').value = "";
+            document.getElementById('m-tier-threshold').value = "3";
+            document.getElementById('m-bw-rate').value = "";
+            document.getElementById('m-bw-bulk').value = "";
+            document.getElementById('m-color-rate').value = "";
+            document.getElementById('m-color-bulk').value = "";
         }
 
-        // 🟢 FIXED QR CODE FUNCTION 🟢
-        function drawQR(text) {
-            const qrContainer = document.getElementById('qr-canvas');
-            qrContainer.innerHTML = ""; 
-            if (typeof window.QRCode === 'undefined') {
-                qrContainer.innerHTML = "<span class='text-xs text-red-500 mt-4'>QR Code Library not loaded. Please refresh.</span>";
-                return;
-            }
-            new window.QRCode(qrContainer, { text: text, width: 176, height: 176, colorDark: "#0f172a", colorLight: "#ffffff", correctLevel: window.QRCode.CorrectLevel.H });
+        function showToast(msg, type = 'info') {
+            const t = document.getElementById('toast');
+            document.getElementById('toast-msg').textContent = msg;
+            t.classList.remove('opacity-0', '-translate-y-4');
+            t.classList.add('opacity-100', 'translate-y-0');
+            setTimeout(() => {
+                t.classList.remove('opacity-100', 'translate-y-0');
+                t.classList.add('opacity-0', '-translate-y-4');
+            }, 3000);
         }
 
-        let toastTimeout;
-        window.showToast = (msg) => {
-            const t = document.getElementById('toast'); document.getElementById('toast-msg').textContent = msg;
-            t.classList.remove('opacity-0', 'translate-y-4'); t.classList.add('opacity-100', 'translate-y-0');
-            clearTimeout(toastTimeout);
-            toastTimeout = setTimeout(() => { t.classList.remove('opacity-100', 'translate-y-0'); t.classList.add('opacity-0', 'translate-y-4'); }, 3000);
-        }
-
+        document.getElementById('btn-logout').onclick = () => signOut(auth).then(() => location.reload());
         lucide.createIcons();
     </script>
 </body>
