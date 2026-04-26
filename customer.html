@@ -1,398 +1,523 @@
-import { auth, db, storage } from './firebase-init.js';
-import { signInAnonymously, onAuthStateChanged, signInWithCustomToken } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
-import { doc, getDoc, collection, addDoc, runTransaction, serverTimestamp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
-import { ref, uploadBytesResumable, getDownloadURL } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-storage.js";
-
-/**
- * --- Smart Xerox Document Management System ---
- * Complete Customer Logic with Multi-file support and Tiered Pricing.
- */
-
-// 1. GLOBAL STATE & CONFIGURATION
-const appId = typeof __app_id !== 'undefined' ? __app_id : 'default-app-id';
-let currentShopId = new URLSearchParams(window.location.search).get('shop');
-let user = null;
-let selectedFiles = []; // Array to store multiple file objects
-
-// Shop Rates State (Tiered Pricing)
-let shopRates = {
-    bwRate: 2,         // Standard B&W
-    bwRateBulk: 1.5,     // Bulk B&W
-    colorRate: 10,       // Standard Color
-    colorRateBulk: 8,    // Bulk Color
-    tierThreshold: 3     // Threshold pages (e.g., 3 pages tak standard, upar bulk)
-};
-
-// Global Settings (Auto-delete, limits)
-let globalSettings = {
-    maxFileSize: 25,
-    autoDeleteHours: 3
-};
-
-// ==========================================
-// 2. APP INITIALIZATION & AUTH
-// ==========================================
-onAuthStateChanged(auth, async (u) => {
-    if (!u) {
-        // Agar user login nahi hai toh anonymous login karein
-        if (typeof __initial_auth_token !== 'undefined' && __initial_auth_token) {
-            await signInWithCustomToken(auth, __initial_auth_token);
-        } else {
-            await signInAnonymously(auth);
-        }
-        return;
-    }
-    
-    user = u;
-    console.log("Customer Authenticated:", user.uid);
-    await setupShopContext();
-});
-
-/**
- * Shop ka data aur rates load karne ka function (Dual Path Support)
- */
-async function setupShopContext() {
-    if (!currentShopId) {
-        showAppError("Invalid QR Code", "Kripya dukan ka asli QR code scan karein.");
-        return;
-    }
-
-    try {
-        // Step A: Load Global Settings
-        const configSnap = await getDoc(doc(db, 'artifacts', appId, 'public', 'data', 'settings', 'global'));
-        if (configSnap.exists()) {
-            globalSettings = { ...globalSettings, ...configSnap.data() };
-        }
-
-        // Step B: Load Shop Rates (Try Rule 1 path first, then root)
-        const paths = [
-            doc(db, 'artifacts', appId, 'public', 'data', 'shops', currentShopId),
-            doc(db, 'shops', currentShopId)
-        ];
-
-        let shopDoc = null;
-        for (let path of paths) {
-            const snap = await getDoc(path);
-            if (snap.exists()) {
-                shopDoc = snap;
-                break;
-            }
-        }
-
-        if (shopDoc) {
-            const data = shopDoc.data();
-            // Update UI Shop Name
-            const shopNameEl = document.getElementById('ui-shop-name');
-            const shopAddrEl = document.getElementById('ui-shop-address');
-            if (shopNameEl) shopNameEl.textContent = data.shopName;
-            if (shopAddrEl) shopAddrEl.textContent = data.address || "Authorized Partner";
-
-            // Sync Tiered Rates
-            shopRates = {
-                bwRate: parseFloat(data.bwRate) || 2,
-                bwRateBulk: parseFloat(data.bwRateBulk) || 1.5,
-                colorRate: parseFloat(data.colorRate) || 10,
-                colorRateBulk: parseFloat(data.colorRateBulk) || 8,
-                tierThreshold: parseInt(data.tierThreshold) || 3
-            };
-
-            // Switch from Loading to Main View
-            document.getElementById('loading-state').classList.add('hidden');
-            document.getElementById('app-main').classList.remove('hidden');
-            
-            // Check for any active orders in memory
-            checkRecoveryData();
-        } else {
-            showAppError("Shop Not Found", "Ye dukan hamare system mein registered nahi hai.");
-        }
-    } catch (error) {
-        console.error("Initialization Error:", error);
-        showAppError("Connection Error", "Server se connectivity mein problem hai.");
-    }
-}
-
-// ==========================================
-// 3. MULTI-FILE SELECTION & DROPZONE
-// ==========================================
-const fileInput = document.getElementById('file-input');
-const dropzone = document.getElementById('dropzone');
-
-if (fileInput) {
-    fileInput.addEventListener('change', e => {
-        handleFiles(Array.from(e.target.files));
-        fileInput.value = ''; // Reset input to allow same file re-selection
-    });
-}
-
-// Drag & Drop Listeners
-if (dropzone) {
-    ['dragenter', 'dragover'].forEach(e => {
-        dropzone.addEventListener(e, (ev) => {
-            ev.preventDefault();
-            dropzone.classList.add('drag-active');
-        });
-    });
-
-    ['dragleave', 'drop'].forEach(e => {
-        dropzone.addEventListener(e, (ev) => {
-            ev.preventDefault();
-            dropzone.classList.remove('drag-active');
-        });
-    });
-
-    dropzone.addEventListener('drop', (ev) => {
-        handleFiles(Array.from(ev.dataTransfer.files));
-    });
-}
-
-/**
- * Files ko process karke state mein save karne ka logic
- */
-function handleFiles(files) {
-    files.forEach(file => {
-        // Size Check (25MB limit)
-        if (file.size > globalSettings.maxFileSize * 1024 * 1024) {
-            alert(`File "${file.name}" bahut badi hai (Max ${globalSettings.maxFileSize}MB allowed).`);
-            return;
-        }
-
-        const isPdf = file.name.toLowerCase().endsWith('.pdf');
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Smart Xerox | Customer Panel</title>
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- Lucide Icons -->
+    <script src="https://unpkg.com/lucide@latest"></script>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap');
+        body { font-family: 'Inter', sans-serif; background-color: #f1f5f9; scroll-behavior: smooth; }
         
-        // Naya File Object banana
-        const fileObj = {
-            id: Math.random().toString(36).substr(2, 9),
-            fileData: file,
-            fileName: file.name,
-            // Simulated Page Count (Production mein pdf.js use karein)
-            pages: isPdf ? Math.floor(Math.random() * 12) + 1 : 1,
-            settings: {
-                colorMode: 'bw' // Default B&W
-            },
-            price: 0
-        };
+        /* Animations */
+        @keyframes bounceIn { from { opacity: 0; transform: scale(0.9); } to { opacity: 1; transform: scale(1); } }
+        .modal-animate { animation: bounceIn 0.4s cubic-bezier(0.68, -0.55, 0.27, 1.55) forwards; }
+        
+        @keyframes slideUp { from { opacity: 0; transform: translateY(20px); } to { opacity: 1; transform: translateY(0); } }
+        .file-card { animation: slideUp 0.3s ease-out forwards; }
 
-        selectedFiles.push(fileObj);
-    });
+        /* Custom Scrollbar */
+        ::-webkit-scrollbar { width: 6px; }
+        ::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 10px; }
+        
+        /* Drag & Drop State */
+        .drag-active { border-color: #3b82f6 !important; background-color: #eff6ff !important; }
+        
+        /* Glassmorphism Summary Bar */
+        .summary-glass { background: rgba(15, 23, 42, 0.95); backdrop-filter: blur(10px); }
+    </style>
+</head>
+<body class="text-slate-800 antialiased min-h-screen flex flex-col pb-32">
 
-    renderFileList();
-}
-
-// ==========================================
-// 4. PRICING LOGIC (TIERED SYSTEM)
-// ==========================================
-
-/**
- * 🟢 TIERED PRICING CALCULATION 🟢
- * Har file ka price uske pages aur mode ke hisaab se count hoga
- */
-function calculateIndividualPrice(pages, mode) {
-    const threshold = shopRates.tierThreshold;
-    const isStandard = pages <= threshold;
-
-    if (mode === 'bw') {
-        return isStandard ? (pages * shopRates.bwRate) : (pages * shopRates.bwRateBulk);
-    } else {
-        return isStandard ? (pages * shopRates.colorRate) : (pages * shopRates.colorRateBulk);
-    }
-}
-
-/**
- * UI Refresh Logic for File List
- */
-function renderFileList() {
-    const listContainer = document.getElementById('file-list');
-    if (!listContainer) return;
-
-    listContainer.innerHTML = "";
-    let overallTotal = 0;
-
-    selectedFiles.forEach((f) => {
-        // Calculate price for this specific file
-        f.price = calculateIndividualPrice(f.pages, f.settings.colorMode);
-        overallTotal += f.price;
-
-        // Card Template
-        const card = document.createElement('div');
-        card.className = "file-card bg-white rounded-3xl p-5 border border-slate-200 shadow-sm flex flex-col md:flex-row md:items-center gap-4 transition-all";
-        card.innerHTML = `
-            <div class="bg-blue-50 p-3 rounded-2xl shrink-0">
-                <i data-lucide="file-text" class="w-6 h-6 text-blue-600"></i>
-            </div>
-            <div class="flex-1 min-w-0">
-                <h4 class="font-black text-slate-800 truncate text-sm">${f.fileName}</h4>
-                <div class="flex items-center gap-2 mt-1">
-                    <span class="text-[10px] font-bold text-slate-400 uppercase tracking-wider">${f.pages} Pages</span>
-                    <span class="text-xs font-black text-emerald-600 bg-emerald-50 px-2 py-0.5 rounded-lg border border-emerald-100">₹${f.price.toFixed(2)}</span>
+    <!-- Professional Header -->
+    <header class="bg-white border-b border-slate-200 sticky top-0 z-30 shadow-sm px-4">
+        <div class="max-w-5xl mx-auto h-16 flex items-center justify-between">
+            <div class="flex items-center gap-2.5">
+                <div class="bg-blue-600 p-2 rounded-xl shadow-lg shadow-blue-600/20">
+                    <i data-lucide="printer" class="w-5 h-5 text-white"></i>
                 </div>
+                <h1 class="font-black text-xl text-slate-900 tracking-tighter italic">Smart<span class="text-blue-600">Xerox</span></h1>
             </div>
-            <div class="flex items-center gap-2">
-                <div class="flex bg-slate-100 p-1 rounded-xl border border-slate-200">
-                    <button onclick="window.updateMode('${f.id}', 'bw')" class="px-4 py-2 rounded-lg text-[10px] font-black uppercase transition-all ${f.settings.colorMode === 'bw' ? 'bg-white shadow-sm text-slate-900' : 'text-slate-500'}">B&W</button>
-                    <button onclick="window.updateMode('${f.id}', 'color')" class="px-4 py-2 rounded-lg text-[10px] font-black uppercase transition-all ${f.settings.colorMode === 'color' ? 'bg-white shadow-sm text-purple-600' : 'text-slate-500'}">Color</button>
+            <div id="ui-shop-name" class="hidden sm:flex text-[10px] font-black bg-slate-100 px-4 py-2 rounded-full text-slate-500 border border-slate-200 uppercase tracking-widest">
+                Connecting...
+            </div>
+        </div>
+    </header>
+
+    <!-- App State Screens -->
+    <div id="loading-state" class="flex-1 flex flex-col items-center justify-center p-6 text-center mt-20">
+        <div class="relative">
+            <div class="w-16 h-16 border-4 border-blue-100 border-t-blue-600 rounded-full animate-spin"></div>
+            <i data-lucide="shield-check" class="w-6 h-6 text-blue-600 absolute inset-0 m-auto"></i>
+        </div>
+        <h2 class="text-lg font-bold text-slate-800 mt-6">Establishing Connection...</h2>
+        <p class="text-sm text-slate-400 mt-1">Please wait while we secure your session.</p>
+    </div>
+
+    <div id="invalid-shop-state" class="hidden flex-1 flex flex-col items-center justify-center p-6 text-center mt-20">
+        <div class="w-24 h-24 bg-red-50 rounded-full flex items-center justify-center mx-auto mb-6 text-red-500 border-4 border-red-100 animate-pulse">
+            <i data-lucide="alert-triangle" class="w-12 h-12"></i>
+        </div>
+        <h2 class="text-2xl font-black text-slate-800">Invalid QR Code</h2>
+        <p class="text-slate-500 mt-2 max-w-xs mx-auto">This shop is not registered or the link has expired. Kripya dukan ka sahi QR code scan karein.</p>
+        <button onclick="location.reload()" class="mt-8 bg-slate-900 text-white px-8 py-3 rounded-2xl font-bold transition-all active:scale-95">Try Again</button>
+    </div>
+
+    <!-- Main Application UI -->
+    <main id="app-main" class="hidden flex-1 max-w-4xl mx-auto w-full p-4 sm:p-6 lg:py-10 space-y-8">
+        
+        <!-- Shop Header Display -->
+        <div class="bg-white rounded-3xl p-5 border border-slate-200 shadow-sm flex items-center gap-4">
+            <div class="w-14 h-14 bg-blue-50 text-blue-600 rounded-2xl flex items-center justify-center shrink-0 border border-blue-100">
+                <i data-lucide="store" class="w-7 h-7"></i>
+            </div>
+            <div class="min-w-0">
+                <p class="text-[10px] font-black text-blue-600 uppercase tracking-widest mb-0.5">Ordering From</p>
+                <h2 id="display-shop-name" class="text-lg font-black text-slate-800 truncate leading-none">Loading Shop...</h2>
+                <p id="display-shop-address" class="text-xs text-slate-400 truncate mt-1">Verifying address...</p>
+            </div>
+        </div>
+
+        <!-- Multi-File Dropzone Area -->
+        <div id="dropzone" class="bg-white rounded-[2.5rem] border-4 border-dashed border-slate-200 p-10 sm:p-16 text-center relative cursor-pointer hover:border-blue-400 hover:bg-blue-50/20 transition-all group shadow-sm">
+            <input type="file" id="file-input" multiple class="absolute inset-0 opacity-0 cursor-pointer z-10" accept=".pdf,.doc,.docx,.jpg,.jpeg,.png">
+            <div class="w-24 h-24 bg-blue-50 text-blue-600 rounded-[2rem] flex items-center justify-center mx-auto mb-6 group-hover:scale-110 group-hover:rotate-3 transition-transform shadow-inner">
+                <i data-lucide="cloud-upload" class="w-12 h-12"></i>
+            </div>
+            <h3 class="font-black text-2xl text-slate-800">Select Documents</h3>
+            <p class="text-sm text-slate-400 mt-2 font-medium max-w-xs mx-auto">You can select multiple PDF files or images at once.</p>
+            <div class="mt-6 flex flex-wrap justify-center gap-2">
+                <span class="bg-slate-100 text-slate-500 text-[10px] font-bold px-3 py-1 rounded-full border border-slate-200">PDF</span>
+                <span class="bg-slate-100 text-slate-500 text-[10px] font-bold px-3 py-1 rounded-full border border-slate-200">Images</span>
+                <span class="bg-slate-100 text-slate-500 text-[10px] font-bold px-3 py-1 rounded-full border border-slate-200">Word</span>
+            </div>
+        </div>
+
+        <!-- File Cards List -->
+        <div id="file-list" class="space-y-4">
+            <!-- Items will be injected by JavaScript -->
+        </div>
+
+        <!-- Special Instructions Box -->
+        <div id="instructions-box" class="hidden bg-white rounded-3xl border border-slate-200 p-6 shadow-sm overflow-hidden relative">
+            <div class="absolute right-0 top-0 w-24 h-24 bg-slate-50 rounded-full -mr-12 -mt-12"></div>
+            <label class="block text-[10px] font-black text-slate-400 uppercase tracking-[0.2em] mb-3 relative z-10">Special Instructions (Optional)</label>
+            <textarea id="order-notes" placeholder="e.g. Please staple all files together, or specific page ranges..." class="w-full bg-slate-50 border border-slate-200 rounded-2xl p-5 text-sm outline-none focus:ring-2 focus:ring-blue-500 transition-all min-h-[100px] relative z-10"></textarea>
+        </div>
+
+        <!-- Summary Bar (Sticky at Bottom) -->
+        <div id="summary-bar" class="fixed bottom-0 left-0 right-0 summary-glass text-white p-6 sm:p-8 shadow-[0_-10px_40px_rgba(0,0,0,0.2)] z-40 border-t border-white/5 hidden">
+            <div class="max-w-4xl mx-auto flex flex-col sm:flex-row items-center justify-between gap-6">
+                <div class="flex items-center gap-4 w-full sm:w-auto">
+                    <div class="bg-white/10 p-3 rounded-2xl border border-white/10">
+                        <i data-lucide="shopping-bag" class="w-6 h-6 text-blue-400"></i>
+                    </div>
+                    <div>
+                        <p class="text-[10px] font-black text-slate-400 uppercase tracking-[0.2em] mb-1">Total Order Bill</p>
+                        <h2 class="text-4xl font-black tracking-tighter">₹<span id="order-total">0</span></h2>
+                    </div>
                 </div>
-                <button onclick="window.removeSelectedFile('${f.id}')" class="p-2.5 text-slate-300 hover:text-red-500 transition-colors">
-                    <i data-lucide="trash-2" class="w-5 h-5"></i>
+                <button id="btn-submit" class="w-full sm:w-auto bg-blue-600 hover:bg-blue-500 text-white px-12 py-4 rounded-2xl font-black shadow-xl shadow-blue-900/40 transition-all active:scale-95 flex items-center justify-center gap-3 text-lg group">
+                    <span>Send Order</span>
+                    <i data-lucide="send" class="w-5 h-5 group-hover:translate-x-1 group-hover:-translate-y-1 transition-transform"></i>
                 </button>
             </div>
-        `;
-        listContainer.appendChild(card);
-    });
+        </div>
 
-    // Handle Empty State & Total
-    const summaryBar = document.getElementById('summary-bar');
-    const totalEl = document.getElementById('order-total');
-    
-    if (selectedFiles.length > 0) {
-        summaryBar.classList.remove('hidden');
-        totalEl.textContent = overallTotal.toFixed(2);
-    } else {
-        summaryBar.classList.add('hidden');
-    }
+        <!-- Spacer for summary bar -->
+        <div class="h-10"></div>
+    </main>
 
-    if (window.lucide) window.lucide.createIcons();
-}
-
-// Window bindings for dynamic buttons
-window.updateMode = (id, mode) => {
-    const file = selectedFiles.find(x => x.id === id);
-    if (file) {
-        file.settings.colorMode = mode;
-        renderFileList();
-    }
-};
-
-window.removeSelectedFile = (id) => {
-    selectedFiles = selectedFiles.filter(x => x.id !== id);
-    renderFileList();
-};
-
-// ==========================================
-// 5. TOKEN GENERATION (TRANSACTIONAL)
-// ==========================================
-async function getNextToken() {
-    const today = new Date().toISOString().split('T')[0];
-    const counterRef = doc(db, 'artifacts', appId, 'public', 'data', 'counters', `${currentShopId}_${today}`);
-    
-    try {
-        let token = 1;
-        await runTransaction(db, async (t) => {
-            const snap = await t.get(counterRef);
-            if (snap.exists()) {
-                token = snap.data().lastToken + 1;
-                t.update(counterRef, { lastToken: token });
-            } else {
-                t.set(counterRef, { lastToken: 1, shopId: currentShopId, date: today });
-            }
-        });
-        return token;
-    } catch (e) {
-        console.warn("Transaction failed, using fallback token.");
-        return Math.floor(Math.random() * 900) + 100;
-    }
-}
-
-// ==========================================
-// 6. ORDER SUBMISSION (STORAGE + FIRESTORE)
-// ==========================================
-const btnSubmit = document.getElementById('btn-submit');
-if (btnSubmit) {
-    btnSubmit.onclick = async () => {
-        if (!user || selectedFiles.length === 0) return;
-
-        // Button Loading State
-        btnSubmit.disabled = true;
-        btnSubmit.innerHTML = `<i data-lucide="loader-2" class="w-5 h-5 animate-spin"></i> Processing Order...`;
-        if (window.lucide) window.lucide.createIcons();
-
-        try {
-            const tokenNum = await getNextToken();
-            const uploadedFilesData = [];
-
-            // Loop through each file and upload
-            for (let fObj of selectedFiles) {
-                const timestamp = Date.now();
-                const safeName = fObj.fileName.replace(/[^a-z0-9.]/gi, '_').toLowerCase();
-                const storagePath = `uploads/${currentShopId}/${timestamp}_${safeName}`;
-                const storageRef = ref(storage, storagePath);
-
-                // Uploading...
-                const uploadTask = await uploadBytesResumable(storageRef, fObj.fileData);
-                const fileUrl = await getDownloadURL(uploadTask.ref);
-
-                uploadedFilesData.push({
-                    fileName: fObj.fileName,
-                    fileUrl: fileUrl,
-                    filePath: storagePath,
-                    pages: fObj.pages,
-                    price: fObj.price,
-                    settings: fObj.settings
-                });
-            }
-
-            // Create Master Entry in Prints Collection
-            const orderDoc = {
-                shopId: currentShopId,
-                customerId: user.uid,
-                token: tokenNum,
-                files: uploadedFilesData,
-                billEstimate: document.getElementById('order-total').textContent,
-                notes: document.getElementById('order-notes')?.value || "",
-                status: "Pending",
-                createdAt: serverTimestamp(),
-                expiresAt: Date.now() + (globalSettings.autoDeleteHours * 3600000)
-            };
-
-            await addDoc(collection(db, 'artifacts', appId, 'public', 'data', 'prints'), orderDoc);
-
-            // Show Success Modal
-            document.getElementById('final-token').textContent = `#${tokenNum}`;
-            document.getElementById('success-modal').classList.remove('hidden');
+    <!-- SUCCESS MODAL -->
+    <div id="success-modal" class="fixed inset-0 bg-slate-900/95 backdrop-blur-xl z-50 hidden flex items-center justify-center p-4">
+        <div class="bg-white rounded-[3.5rem] shadow-2xl max-w-sm w-full p-10 text-center modal-animate border border-slate-100">
+            <div class="w-28 h-28 bg-emerald-50 text-emerald-500 rounded-full flex items-center justify-center mx-auto mb-8 border-4 border-white shadow-xl">
+                <i data-lucide="check-circle-2" class="w-14 h-14"></i>
+            </div>
+            <h2 class="text-3xl font-black text-slate-900 mb-2 leading-tight">Order Success!</h2>
+            <p class="text-slate-500 text-sm mb-10 leading-relaxed font-medium">Documents are uploaded. Give your token number at the counter for printing.</p>
             
-            // Local storage backup
-            localStorage.setItem('smartXerox_lastOrder', JSON.stringify({
-                token: tokenNum,
-                timestamp: Date.now(),
-                shop: currentShopId
-            }));
+            <div class="bg-slate-50 border-2 border-slate-100 rounded-[2.5rem] p-10 mb-10 shadow-inner relative overflow-hidden group">
+                <div class="absolute -right-6 -bottom-6 opacity-[0.03] group-hover:scale-110 transition-transform"><i data-lucide="hash" class="w-40 h-40 text-slate-900"></i></div>
+                <p class="text-[11px] font-black text-slate-400 uppercase tracking-[0.2em] mb-2 relative z-10">Your Unique Token</p>
+                <p class="text-7xl font-black text-blue-600 tracking-tighter relative z-10" id="final-token">#0</p>
+            </div>
+            
+            <button onclick="location.reload()" class="w-full bg-slate-900 hover:bg-slate-800 text-white font-black py-5 rounded-3xl shadow-xl active:scale-95 transition-all text-lg">Send Another Order</button>
+        </div>
+    </div>
 
-        } catch (error) {
-            console.error("Submit Error:", error);
-            alert("Order processing failed. Kripya apna internet connection check karein.");
-            btnSubmit.disabled = false;
-            btnSubmit.innerHTML = `Send Order <i data-lucide="send" class="w-5 h-5"></i>`;
-            if (window.lucide) window.lucide.createIcons();
-        }
-    };
-}
+    <!-- CUSTOM NOTIFICATION POPUP -->
+    <div id="custom-popup" class="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-[100] hidden flex items-center justify-center p-4 transition-opacity duration-200">
+        <div class="bg-white rounded-[2.5rem] shadow-2xl max-w-sm w-full p-10 modal-animate text-center border border-white/20">
+            <div id="popup-icon-container" class="mx-auto mb-6 transition-transform hover:scale-110 duration-500"></div>
+            <h3 id="popup-title" class="text-xl font-black text-slate-800 mb-2"></h3>
+            <p id="popup-msg" class="text-sm text-slate-500 mb-10 leading-relaxed font-medium"></p>
+            <button onclick="window.closePopup()" class="w-full bg-slate-900 text-white font-black py-4 rounded-2xl active:scale-95 transition-all shadow-lg">Okay, Got it</button>
+        </div>
+    </div>
 
-// ==========================================
-// 7. UTILITIES (RECOVERY & ERRORS)
-// ==========================================
-function checkRecoveryData() {
-    const saved = localStorage.getItem('smartXerox_lastOrder');
-    if (saved) {
-        const data = JSON.parse(saved);
-        // Check if data is not older than 3 hours
-        if (Date.now() - data.timestamp < (globalSettings.autoDeleteHours * 3600000)) {
-            const banner = document.getElementById('recovery-banner');
-            const tokenEl = document.getElementById('rec-token');
-            if (banner && tokenEl) {
-                tokenEl.textContent = `#${data.token}`;
-                banner.classList.remove('hidden');
+    <!-- SCRIPTS: FIREBASE + APP LOGIC -->
+    <script type="module">
+        import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
+        import { getAuth, signInAnonymously, onAuthStateChanged, signInWithCustomToken } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
+        import { getFirestore, doc, getDoc, collection, addDoc, runTransaction, serverTimestamp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
+        import { getStorage, ref, uploadBytesResumable, getDownloadURL } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-storage.js";
+
+        /**
+         * --- Configuration ---
+         * Bhai, hum blank apiKey use karenge kyunki environment provides the key.
+         */
+        const apiKey = "";
+        const firebaseConfig = JSON.parse(__firebase_config);
+        const app = initializeApp(firebaseConfig);
+        const auth = getAuth(app);
+        const db = getFirestore(app);
+        const storage = getStorage(app);
+        const appId = typeof __app_id !== 'undefined' ? __app_id : 'default-app-id';
+
+        // GLOBAL APP STATE
+        let user = null;
+        let currentShopId = new URLSearchParams(window.location.search).get('shop');
+        
+        // 🟢 Default Shop Rates (Merged with real ones later) 🟢
+        let shopRates = { 
+            bwRate: 2.0,       // Standard rate
+            bwRateBulk: 1.5,   // Sasta rate agar pages limit cross karein
+            colorRate: 10.0,   // Standard rate color
+            colorRateBulk: 8.0, // Sasta rate color bulk
+            tierThreshold: 3    // Example: 3 se jayada page par bulk rates
+        };
+
+        let globalSettings = { maxFileSize: 25, autoDeleteHours: 3 };
+        let selectedFiles = []; // Array of processed files
+
+        // ==========================================
+        // 1. AUTHENTICATION & SHOP INITIALIZATION
+        // ==========================================
+        
+        onAuthStateChanged(auth, async (u) => {
+            if (!u) {
+                // Pehle Auth call karenge (Mandatory Rule 3)
+                if (typeof __initial_auth_token !== 'undefined' && __initial_auth_token) {
+                    await signInWithCustomToken(auth, __initial_auth_token);
+                } else {
+                    await signInAnonymously(auth);
+                }
+                return;
+            }
+            user = u;
+            bootstrapApp();
+        });
+
+        async function bootstrapApp() {
+            if (!currentShopId) {
+                toggleState('invalid');
+                return;
+            }
+
+            try {
+                // Global rules load karo (Storage limits etc)
+                const configSnap = await getDoc(doc(db, 'artifacts', appId, 'public', 'data', 'settings', 'global'));
+                if(configSnap.exists()) globalSettings = { ...globalSettings, ...configSnap.data() };
+
+                // Shop context load karo (Dual Path Support - Rule 1 and Root)
+                const paths = [
+                    doc(db, 'artifacts', appId, 'public', 'data', 'shops', currentShopId),
+                    doc(db, 'shops', currentShopId)
+                ];
+
+                let shopDocData = null;
+                for(let pathRef of paths) {
+                    const snap = await getDoc(pathRef);
+                    if(snap.exists()) {
+                        shopDocData = snap.data();
+                        break;
+                    }
+                }
+
+                if (shopDocData) {
+                    // Update UI elements
+                    document.getElementById('ui-shop-name').textContent = shopDocData.shopName;
+                    document.getElementById('display-shop-name').textContent = shopDocData.shopName;
+                    document.getElementById('display-shop-address').textContent = shopDocData.address || "Authorized Print Partner";
+                    
+                    // Sync Tiered Rates with Float support
+                    shopRates = {
+                        bwRate: parseFloat(shopDocData.bwRate) || 2.0,
+                        bwRateBulk: parseFloat(shopDocData.bwRateBulk) || 1.5,
+                        colorRate: parseFloat(shopDocData.colorRate) || 10.0,
+                        colorRateBulk: parseFloat(shopDocData.colorRateBulk) || 8.0,
+                        tierThreshold: parseInt(shopDocData.tierThreshold) || 3
+                    };
+
+                    toggleState('main');
+                } else {
+                    toggleState('invalid');
+                }
+            } catch (e) {
+                console.error("Bootstrap Error:", e);
+                window.showPopup("System Error", "Unable to load shop data. Check connection.", "error");
             }
         }
-    }
-}
 
-function showAppError(title, msg) {
-    document.getElementById('loading-state').classList.add('hidden');
-    const errState = document.getElementById('invalid-shop-state');
-    if (errState) {
-        errState.querySelector('h2').textContent = title;
-        errState.querySelector('p').textContent = msg;
-        errState.classList.remove('hidden');
-    }
-}
+        // Helper to switch screens
+        function toggleState(state) {
+            document.getElementById('loading-state').classList.add('hidden');
+            document.getElementById('invalid-shop-state').classList.add('hidden');
+            document.getElementById('app-main').classList.add('hidden');
 
-// Initial Icons
-if (window.lucide) window.lucide.createIcons();
+            if(state === 'main') {
+                document.getElementById('app-main').classList.remove('hidden');
+                document.getElementById('ui-shop-name').classList.remove('hidden');
+            } else if(state === 'invalid') {
+                document.getElementById('invalid-shop-state').classList.remove('hidden');
+            }
+            lucide.createIcons();
+        }
+
+        // ==========================================
+        // 2. FILE SELECTION & PRICING ENGINE
+        // ==========================================
+
+        const fileInput = document.getElementById('file-input');
+        const dropzone = document.getElementById('dropzone');
+
+        fileInput.onchange = e => handleFiles(Array.from(e.target.files));
+
+        // Drag & Drop Visual States
+        ['dragenter', 'dragover'].forEach(e => dropzone.addEventListener(e, (ev) => {
+            ev.preventDefault(); dropzone.classList.add('drag-active');
+        }));
+        ['dragleave', 'drop'].forEach(e => dropzone.addEventListener(e, (ev) => {
+            ev.preventDefault(); dropzone.classList.remove('drag-active');
+        }));
+        dropzone.addEventListener('drop', e => {
+            e.preventDefault();
+            handleFiles(Array.from(e.dataTransfer.files));
+        });
+
+        /**
+         * 🟢 Processing Files Logic 🟢
+         */
+        function handleFiles(files) {
+            files.forEach(file => {
+                // Filter size
+                if (file.size > globalSettings.maxFileSize * 1024 * 1024) {
+                    window.showPopup("File Limit Exceeded", `${file.name} is too large. Max ${globalSettings.maxFileSize}MB allowed.`, "error");
+                    return;
+                }
+
+                // Simulate Page Count (Production: use pdf.js)
+                const isPdf = file.name.toLowerCase().endsWith('.pdf');
+                const pages = isPdf ? Math.floor(Math.random() * 12) + 1 : 1;
+
+                const fileObj = {
+                    id: Math.random().toString(36).substr(2, 9),
+                    fileData: file,
+                    fileName: file.name,
+                    pages: pages,
+                    settings: { colorMode: 'bw' }, // default
+                    price: 0
+                };
+                selectedFiles.push(fileObj);
+            });
+            renderFileList();
+            fileInput.value = ''; // allow same file again
+        }
+
+        /**
+         * 🟢 TIERED PRICING ENGINE 🟢
+         * Standard vs Bulk rates logic
+         */
+        function calculatePrice(pages, mode) {
+            const threshold = shopRates.tierThreshold;
+            const isStandard = pages <= threshold;
+            
+            let rate = 0;
+            if (mode === 'bw') {
+                rate = isStandard ? shopRates.bwRate : shopRates.bwRateBulk;
+            } else {
+                rate = isStandard ? shopRates.colorRate : shopRates.colorRateBulk;
+            }
+            
+            return pages * rate;
+        }
+
+        /**
+         * UI RENDERER: FILE CARDS
+         */
+        function renderFileList() {
+            const container = document.getElementById('file-list');
+            container.innerHTML = "";
+            let totalOrderPrice = 0;
+
+            selectedFiles.forEach((f) => {
+                f.price = calculatePrice(f.pages, f.settings.colorMode);
+                totalOrderPrice += f.price;
+
+                const card = document.createElement('div');
+                card.className = "file-card bg-white rounded-3xl p-5 border border-slate-200 shadow-sm flex flex-col md:flex-row md:items-center gap-5 relative overflow-hidden group hover:border-blue-200 transition-colors";
+                card.innerHTML = `
+                    <div class="flex-1 min-w-0">
+                        <div class="flex items-center gap-2.5 mb-1.5">
+                            <div class="bg-blue-50 p-2 rounded-xl border border-blue-100"><i data-lucide="file-text" class="w-5 h-5 text-blue-500"></i></div>
+                            <h4 class="font-black text-slate-800 truncate text-base">${f.fileName}</h4>
+                        </div>
+                        <div class="flex items-center gap-3">
+                             <span class="text-[10px] font-black text-slate-400 uppercase tracking-widest bg-slate-50 px-2 py-0.5 rounded-md border border-slate-100">${f.pages} Pages</span>
+                             <div class="h-1 w-1 rounded-full bg-slate-300"></div>
+                             <p class="text-sm font-black text-emerald-600">₹${f.price.toFixed(2)}</p>
+                             ${f.pages > shopRates.tierThreshold ? '<span class="text-[8px] font-bold text-amber-500 uppercase bg-amber-50 px-1.5 rounded border border-amber-100">Bulk Rate Applied</span>' : ''}
+                        </div>
+                    </div>
+                    <div class="flex items-center gap-2 shrink-0">
+                        <div class="flex bg-slate-100 p-1.5 rounded-[1.25rem] border border-slate-200 shadow-inner">
+                            <button onclick="window.updateFileMode('${f.id}', 'bw')" class="px-5 py-2.5 rounded-xl text-[10px] font-black uppercase transition-all ${f.settings.colorMode === 'bw' ? 'bg-white shadow-sm text-slate-900' : 'text-slate-400 hover:text-slate-600'}">B&W</button>
+                            <button onclick="window.updateFileMode('${f.id}', 'color')" class="px-5 py-2.5 rounded-xl text-[10px] font-black uppercase transition-all ${f.settings.colorMode === 'color' ? 'bg-purple-600 text-white shadow-lg shadow-purple-200' : 'text-slate-400 hover:text-slate-600'}">Color</button>
+                        </div>
+                        <button onclick="window.removeFile('${f.id}')" class="p-3 text-slate-300 hover:text-red-500 hover:bg-red-50 rounded-2xl transition-all"><i data-lucide="trash-2" class="w-5 h-5"></i></button>
+                    </div>
+                `;
+                container.appendChild(card);
+            });
+
+            // Handle Summary Visibility
+            const hasFiles = selectedFiles.length > 0;
+            document.getElementById('summary-bar').classList.toggle('hidden', !hasFiles);
+            document.getElementById('instructions-box').classList.toggle('hidden', !hasFiles);
+            document.getElementById('order-total').textContent = totalOrderPrice.toFixed(2);
+            lucide.createIcons();
+        }
+
+        // Binders for buttons in cards
+        window.updateFileMode = (id, mode) => {
+            const f = selectedFiles.find(x => x.id === id);
+            if (f) { f.settings.colorMode = mode; renderFileList(); }
+        };
+
+        window.removeFile = (id) => {
+            selectedFiles = selectedFiles.filter(x => x.id !== id);
+            renderFileList();
+        };
+
+        // ==========================================
+        // 3. TRANSACTIONAL TOKEN GENERATION
+        // ==========================================
+        
+        async function getNextToken() {
+            const today = new Date().toISOString().split('T')[0]; // Format: YYYY-MM-DD
+            const counterRef = doc(db, 'artifacts', appId, 'public', 'data', 'counters', `${currentShopId}_${today}`);
+            
+            try {
+                let tokenNum = 1;
+                await runTransaction(db, async (transaction) => {
+                    const snap = await transaction.get(counterRef);
+                    if (snap.exists()) {
+                        tokenNum = snap.data().lastToken + 1;
+                        transaction.update(counterRef, { lastToken: tokenNum });
+                    } else {
+                        // First order of the new day
+                        transaction.set(counterRef, { lastToken: 1, shopId: currentShopId, date: today });
+                    }
+                });
+                return tokenNum;
+            } catch (e) {
+                console.warn("Transaction failed, using random fallback.");
+                return Math.floor(Math.random() * 900) + 100;
+            }
+        }
+
+        // ==========================================
+        // 4. ORDER SUBMISSION (STORAGE + DB)
+        // ==========================================
+
+        const btnSubmit = document.getElementById('btn-submit');
+        btnSubmit.onclick = async () => {
+            if (!user || selectedFiles.length === 0) return;
+
+            btnSubmit.innerHTML = `<i data-lucide="loader-2" class="w-5 h-5 animate-spin"></i> Processing...`; 
+            btnSubmit.disabled = true;
+            lucide.createIcons();
+
+            try {
+                const tokenNum = await getNextToken();
+                const uploadedFilesData = [];
+
+                // Parallel Upload Loop
+                for (let fObj of selectedFiles) {
+                    const uniqueSuffix = Date.now() + '-' + Math.round(Math.random() * 1E9);
+                    const cleanName = fObj.fileName.replace(/[^a-z0-9.]/gi, '_').toLowerCase();
+                    const storagePath = `uploads/${currentShopId}/${uniqueSuffix}_${cleanName}`;
+                    const storageRef = ref(storage, storagePath);
+
+                    const uploadTask = await uploadBytesResumable(storageRef, fObj.fileData);
+                    const downloadUrl = await getDownloadURL(uploadTask.ref);
+                    
+                    uploadedFilesData.push({
+                        fileName: fObj.fileName,
+                        fileUrl: downloadUrl,
+                        filePath: storagePath,
+                        pages: fObj.pages,
+                        price: fObj.price,
+                        settings: fObj.settings
+                    });
+                }
+
+                // Final Order Document (Rule 1 Compliant)
+                const orderData = {
+                    shopId: currentShopId,
+                    customerId: user.uid,
+                    token: tokenNum,
+                    files: uploadedFilesData,
+                    billEstimate: document.getElementById('order-total').textContent,
+                    status: "Pending",
+                    notes: document.getElementById('order-notes').value || "",
+                    createdAt: serverTimestamp(),
+                    expiresAt: Date.now() + (globalSettings.autoDeleteHours * 3600000)
+                };
+
+                await addDoc(collection(db, 'artifacts', appId, 'public', 'data', 'prints'), orderData);
+
+                // Show Success Screen
+                document.getElementById('final-token').textContent = `#${tokenNum}`;
+                document.getElementById('success-modal').classList.remove('hidden');
+                
+            } catch (e) { 
+                console.error("Submission Error:", e); 
+                window.showPopup("Upload Failed", "Connectivity issue detected. Please check your internet and try again.", "error"); 
+                btnSubmit.innerHTML = `Send Order <i data-lucide="send" class="w-5 h-5"></i>`; 
+                btnSubmit.disabled = false; 
+                lucide.createIcons();
+            }
+        };
+
+        // ==========================================
+        // 5. GLOBAL UI UTILITIES
+        // ==========================================
+
+        window.showPopup = (title, msg, type = 'info') => {
+            const popup = document.getElementById('custom-popup');
+            const iconCon = document.getElementById('popup-icon-container');
+            document.getElementById('popup-title').textContent = title;
+            document.getElementById('popup-msg').textContent = msg;
+            
+            iconCon.className = `w-16 h-16 rounded-full flex items-center justify-center mx-auto mb-6 ${type === 'error' ? 'bg-red-50 text-red-500' : 'bg-blue-50 text-blue-600'}`;
+            iconCon.innerHTML = `<i data-lucide="${type === 'error' ? 'x-circle' : 'info'}" class="w-8 h-8"></i>`;
+            
+            popup.classList.remove('hidden');
+            lucide.createIcons();
+        };
+
+        window.closePopup = () => {
+            document.getElementById('custom-popup').classList.add('hidden');
+        };
+
+        // Initialized Icons
+        lucide.createIcons();
+    </script>
+</body>
+</html>
