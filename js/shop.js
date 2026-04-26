@@ -50,6 +50,34 @@ function formatExpiryFull(expiryTimestamp) {
     return `${day}/${month}/${year} ${time}`;
 }
 
+// 🟢 NEW: Clean View Function to prevent URL/Header/Footer in prints 🟢
+window.viewFile = (url, fileName) => {
+    const isImage = /\.(jpg|jpeg|png|gif|webp)$/i.test(fileName);
+    if (isImage) {
+        const printWindow = window.open('', '_blank');
+        printWindow.document.write(`
+            <!DOCTYPE html>
+            <html>
+            <head>
+                <title>${fileName}</title>
+                <style>
+                    @page { size: auto; margin: 0mm; }
+                    body { margin: 0; display: flex; justify-content: center; align-items: center; min-height: 100vh; background: #fff; }
+                    img { max-width: 100%; max-height: 100%; object-fit: contain; page-break-inside: avoid; }
+                </style>
+            </head>
+            <body>
+                <img src="${url}">
+            </body>
+            </html>
+        `);
+        printWindow.document.close();
+    } else {
+        // PDFs already handle clean printing well in browsers
+        window.open(url, '_blank');
+    }
+};
+
 // ==========================================
 // 1. UI NAVIGATION & SIDEBAR
 // ==========================================
@@ -251,7 +279,7 @@ function startListeningToQueue() {
         if (pendingCount > previousPendingCount && soundEnabled) playAlertSound();
         previousPendingCount = pendingCount;
 
-        // Sequence: Latest at top for history, Earliest at top for active queue
+        // Sorting: Newest first
         allJobs.sort((a, b) => {
             const timeA = a.createdAt?.seconds || a.createdAt || 0;
             const timeB = b.createdAt?.seconds || b.createdAt || 0;
@@ -273,27 +301,33 @@ function buildCard(j) {
     
     let filesHtml = "";
     if (j.files && Array.isArray(j.files)) {
-        filesHtml = j.files.map(f => `
-            <div class="flex items-center gap-3 bg-slate-50 p-3 rounded-2xl border border-slate-100 mb-2 group/file">
-                <div class="p-2 bg-white rounded-xl shadow-xs shrink-0"><i data-lucide="file-text" class="w-5 h-5 ${f.settings?.colorMode === 'color' ? 'text-purple-500' : 'text-blue-500'}"></i></div>
-                <div class="flex-1 min-w-0">
-                    <p class="text-[13px] font-bold text-slate-700 truncate">${f.fileName}</p>
-                    <p class="text-[10px] font-bold text-slate-400 uppercase tracking-tighter">${f.settings?.colorMode?.toUpperCase() || 'B&W'} • ${f.pages || 1} Pgs • ₹${f.price || 0}</p>
+        filesHtml = j.files.map(f => {
+            // Clean filename for safety in JS call
+            const safeFileName = f.fileName.replace(/'/g, "\\'");
+            return `
+                <div class="flex items-center gap-3 bg-slate-50 p-3 rounded-2xl border border-slate-100 mb-2 group/file">
+                    <div class="p-2 bg-white rounded-xl shadow-xs shrink-0"><i data-lucide="file-text" class="w-5 h-5 ${f.settings?.colorMode === 'color' ? 'text-purple-500' : 'text-blue-500'}"></i></div>
+                    <div class="flex-1 min-w-0">
+                        <p class="text-[13px] font-bold text-slate-700 truncate">${f.fileName}</p>
+                        <p class="text-[10px] font-bold text-slate-400 uppercase tracking-tighter">${f.settings?.colorMode?.toUpperCase() || 'B&W'} • ${f.pages || 1} Pgs • ₹${f.price || 0}</p>
+                    </div>
+                    ${!j.fileDeleted ? `
+                        <button onclick="window.viewFile('${f.fileUrl}', '${safeFileName}')" class="text-[10px] font-black text-blue-600 bg-blue-50 px-3 py-2 rounded-lg uppercase hover:bg-blue-600 hover:text-white transition-all">Open</button>
+                    ` : ''}
                 </div>
-                ${!j.fileDeleted ? `<a href="${f.fileUrl}" target="_blank" class="text-[9px] font-black text-blue-600 bg-blue-50 px-3 py-2 rounded-lg uppercase hover:bg-blue-600 hover:text-white transition-all">Open</a>` : ''}
-            </div>
-        `).join('');
+            `;
+        }).join('');
     }
 
     const priceBadge = `<div class="bg-emerald-500 text-white px-2.5 py-1.5 rounded-xl text-xs font-black shadow-sm">₹${j.billEstimate || 0}</div>`;
 
-    // 🟢 SCHEDULED DELETION INFO 🟢
+    // SCHEDULED DELETION INFO
     let deletionHtml = "";
     if(j.expiresAt && !j.fileDeleted) {
         deletionHtml = `
             <div class="mt-3 flex items-center gap-1.5 text-[10px] font-bold text-red-500 bg-red-50 border border-red-100 px-3 py-1.5 rounded-xl w-fit">
                 <i data-lucide="clock-alert" class="w-3.5 h-3.5"></i>
-                Auto-delete: ${formatExpiryFull(j.expiresAt)}
+                Scheduled Deletion: ${formatExpiryFull(j.expiresAt)}
             </div>
         `;
     }
@@ -367,7 +401,7 @@ function renderDone() {
         return;
     }
 
-    // Professional Grouping by Date
+    // Grouping by Date
     const groups = {};
     filtered.forEach(j => {
         const rawDate = j.createdAt?.seconds ? new Date(j.createdAt.seconds * 1000).toISOString().split('T')[0] : new Date(j.createdAt).toISOString().split('T')[0];
@@ -545,7 +579,6 @@ document.getElementById('btn-confirm-delete').onclick = async () => {
 window.openExpiryModal = (id) => {
     expiryContextId = id;
     document.getElementById('expiry-modal').classList.remove('hidden');
-    // Ensure proportional widths in JS injection as safety
     const v = document.getElementById('expiry-val');
     const u = document.getElementById('expiry-unit');
     if(v && u) { v.style.width = "65%"; u.style.width = "35%"; }
