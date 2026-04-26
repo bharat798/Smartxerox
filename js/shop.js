@@ -14,8 +14,8 @@ let allJobs = [];
 let deleteContext = null; 
 let expiryContextId = null; 
 
-// 🟢 Analytics State (Fixed for Month Selection) 🟢
-let selectedMonth = new Date().toISOString().slice(0, 7); 
+// 🟢 Analytics State (Globally managed) 🟢
+let selectedMonth = new Date().toISOString().slice(0, 7); // Format: "YYYY-MM"
 let isMonthViewActive = false; 
 let globalAnalyticsData = []; 
 
@@ -244,11 +244,11 @@ function buildCard(j) {
         <div class="absolute left-0 top-0 bottom-0 w-1.5 ${statusCol}"></div>
         <div class="flex justify-between items-start mb-4">
             <div class="flex items-center gap-2">
-                <div class="bg-slate-900 text-white px-3 py-1.5 rounded-xl text-xl font-black">#${j.token}</div>
+                <div class="bg-slate-900 text-white px-4 py-1.5 rounded-xl text-xl font-black">#${j.token}</div>
                 ${priceBadge}
             </div>
             <div class="flex flex-col items-end">
-                <div class="text-[10px] font-black text-slate-400 uppercase tracking-widest bg-slate-100 px-2 py-1 rounded-md">${time}</div>
+                <div class="text-[10px] font-black text-slate-400 uppercase tracking-widest bg-slate-100 px-2 py-1 rounded-md uppercase">${time}</div>
                 ${isDone && timeLabel && !j.fileDeleted ? `<div class="text-[9px] font-bold text-blue-500 mt-1 flex items-center gap-1"><i data-lucide="clock" class="w-3 h-3"></i> ${timeLabel}</div>` : ''}
                 ${j.fileDeleted ? `<div class="text-[9px] font-bold text-slate-400 mt-1 italic">Record Kept</div>` : ''}
             </div>
@@ -311,7 +311,6 @@ function renderDone() {
 
     const groups = {};
     filtered.forEach(j => {
-        // Group header using formatToDDMMYYYY
         const rawDate = new Date(j.createdAt).toISOString().split('T')[0];
         const displayDate = formatToDDMMYYYY(rawDate);
         if(!groups[displayDate]) groups[displayDate] = [];
@@ -360,6 +359,7 @@ function setupAnalyticsHeader() {
     const container = document.querySelector('#view-analytics div.bg-white.rounded-3xl.border div.p-6.border-b');
     if (!container) return;
 
+    // Fixed UI Structure with Month Selection
     container.innerHTML = `
         <div class="flex items-center gap-4 w-full">
             <h3 class="font-black text-slate-800 uppercase tracking-widest text-xs flex-1">Daily Revenue Ledger</h3>
@@ -379,14 +379,15 @@ function setupAnalyticsHeader() {
     const todayBtn = document.getElementById('btn-analytics-today');
 
     if (monthInput) {
-        monthInput.onchange = (e) => {
+        monthInput.addEventListener('input', (e) => {
             selectedMonth = e.target.value;
             if(!selectedMonth) return;
             isMonthViewActive = true; 
-            document.getElementById('display-selected-month').textContent = formatMonthLabel(selectedMonth);
+            const displayEl = document.getElementById('display-selected-month');
+            if(displayEl) displayEl.textContent = formatMonthLabel(selectedMonth);
             updateAnalyticsUI(); 
             window.showToast(`Showing ${formatMonthLabel(selectedMonth)}`, "info");
-        };
+        });
     }
 
     if (todayBtn) {
@@ -394,7 +395,8 @@ function setupAnalyticsHeader() {
             selectedMonth = new Date().toISOString().slice(0, 7);
             if(monthInput) monthInput.value = selectedMonth;
             isMonthViewActive = false; 
-            document.getElementById('display-selected-month').textContent = formatMonthLabel(selectedMonth);
+            const displayEl = document.getElementById('display-selected-month');
+            if(displayEl) displayEl.textContent = formatMonthLabel(selectedMonth);
             updateAnalyticsUI();
             window.showToast("Back to Today's view", "success");
         };
@@ -450,8 +452,8 @@ function updateAnalyticsUI() {
     const cardTokTitle = document.querySelector('#view-analytics div.bg-white.p-8.rounded-\\[2rem\\] p');
 
     if (isMonthViewActive) {
-        if (cardRevTitle) cardRevTitle.textContent = `${formatMonthLabel(selectedMonth)} REVENUE`;
-        if (cardTokTitle) cardTokTitle.textContent = `${formatMonthLabel(selectedMonth)} TOKENS`;
+        if (cardRevTitle) cardRevTitle.textContent = `${formatMonthLabel(selectedMonth).toUpperCase()} REVENUE`;
+        if (cardTokTitle) cardTokTitle.textContent = `${formatMonthLabel(selectedMonth).toUpperCase()} TOKENS`;
         document.getElementById('stat-earn-today').textContent = filteredMonthRev;
         document.getElementById('stat-tokens-today').textContent = filteredMonthTok;
     } else {
@@ -480,7 +482,7 @@ function updateAnalyticsUI() {
 }
 
 // ==========================================
-// 7. PROFESSIONAL MODALS (🟢 FIXED CSS & ALIGNMENT 🟢)
+// 7. PROFESSIONAL MODALS (🟢 FIXED CSS 🟢)
 // ==========================================
 window.askDelete = (id, path, isDoneRecord) => {
     deleteContext = { id, path, isDoneRecord };
@@ -532,14 +534,21 @@ window.openExpiryModal = (id) => {
     const modal = document.getElementById('expiry-modal');
     if (modal) {
         modal.classList.remove('hidden');
-        // 🟢 FIXED CSS: Proportional widths to prevent overflow 🟢
+        // 🟢 FIX: Container Flex & Widths 🟢
+        const container = modal.querySelector('.flex.gap-2.mb-6');
+        if(container) {
+            container.style.display = "flex";
+            container.style.flexWrap = "nowrap";
+            container.style.alignItems = "center";
+            container.style.justifyContent = "space-between";
+        }
         const unitSelect = document.getElementById('expiry-unit');
         const valInput = document.getElementById('expiry-val');
         if(unitSelect && valInput) {
-            valInput.style.width = "60%";
+            valInput.style.width = "65%";
             unitSelect.style.width = "35%";
             valInput.className = "bg-slate-50 border border-slate-200 rounded-xl px-4 py-3 font-bold text-center outline-none focus:ring-2 focus:ring-blue-500";
-            unitSelect.className = "bg-slate-50 border border-slate-200 rounded-xl px-2 py-3 font-bold outline-none focus:ring-2 focus:ring-blue-500";
+            unitSelect.className = "bg-slate-50 border border-slate-200 rounded-xl px-2 py-3 font-bold outline-none focus:ring-2 focus:ring-blue-500 appearance-none";
         }
     }
 };
