@@ -162,38 +162,25 @@
 
     <!-- SCRIPTS: FIREBASE + APP LOGIC -->
     <script type="module">
-        import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
-        import { getAuth, signInAnonymously, onAuthStateChanged, signInWithCustomToken } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
-        import { getFirestore, doc, getDoc, collection, addDoc, runTransaction, serverTimestamp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
-        import { getStorage, ref, uploadBytesResumable, getDownloadURL } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-storage.js";
+        // 🟢 FIX: Import from existing init file to prevent config errors 🟢
+        import { auth, db, storage } from './js/firebase-init.js';
+        import { signInAnonymously, onAuthStateChanged, signInWithCustomToken } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-auth.js";
+        import { doc, getDoc, collection, addDoc, runTransaction, serverTimestamp } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js";
+        import { ref, uploadBytesResumable, getDownloadURL } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-storage.js";
 
-        /**
-         * --- Configuration ---
-         * Bhai, hum blank apiKey use karenge kyunki environment provides the key.
-         */
-        const apiKey = "";
-        const firebaseConfig = JSON.parse(__firebase_config);
-        const app = initializeApp(firebaseConfig);
-        const auth = getAuth(app);
-        const db = getFirestore(app);
-        const storage = getStorage(app);
+        // APP STATE
         const appId = typeof __app_id !== 'undefined' ? __app_id : 'default-app-id';
-
-        // GLOBAL APP STATE
         let user = null;
         let currentShopId = new URLSearchParams(window.location.search).get('shop');
         
-        // 🟢 Default Shop Rates (Merged with real ones later) 🟢
         let shopRates = { 
-            bwRate: 2.0,       // Standard rate
-            bwRateBulk: 1.5,   // Sasta rate agar pages limit cross karein
-            colorRate: 10.0,   // Standard rate color
-            colorRateBulk: 8.0, // Sasta rate color bulk
-            tierThreshold: 3    // Example: 3 se jayada page par bulk rates
+            bwRate: 2.0, bwRateBulk: 1.5,
+            colorRate: 10.0, colorRateBulk: 8.0,
+            tierThreshold: 3 
         };
 
         let globalSettings = { maxFileSize: 25, autoDeleteHours: 3 };
-        let selectedFiles = []; // Array of processed files
+        let selectedFiles = [];
 
         // ==========================================
         // 1. AUTHENTICATION & SHOP INITIALIZATION
@@ -201,7 +188,6 @@
         
         onAuthStateChanged(auth, async (u) => {
             if (!u) {
-                // Pehle Auth call karenge (Mandatory Rule 3)
                 if (typeof __initial_auth_token !== 'undefined' && __initial_auth_token) {
                     await signInWithCustomToken(auth, __initial_auth_token);
                 } else {
@@ -220,11 +206,11 @@
             }
 
             try {
-                // Global rules load karo (Storage limits etc)
+                // Global rules load karo
                 const configSnap = await getDoc(doc(db, 'artifacts', appId, 'public', 'data', 'settings', 'global'));
                 if(configSnap.exists()) globalSettings = { ...globalSettings, ...configSnap.data() };
 
-                // Shop context load karo (Dual Path Support - Rule 1 and Root)
+                // Shop context load karo
                 const paths = [
                     doc(db, 'artifacts', appId, 'public', 'data', 'shops', currentShopId),
                     doc(db, 'shops', currentShopId)
@@ -240,12 +226,10 @@
                 }
 
                 if (shopDocData) {
-                    // Update UI elements
                     document.getElementById('ui-shop-name').textContent = shopDocData.shopName;
                     document.getElementById('display-shop-name').textContent = shopDocData.shopName;
                     document.getElementById('display-shop-address').textContent = shopDocData.address || "Authorized Print Partner";
                     
-                    // Sync Tiered Rates with Float support
                     shopRates = {
                         bwRate: parseFloat(shopDocData.bwRate) || 2.0,
                         bwRateBulk: parseFloat(shopDocData.bwRateBulk) || 1.5,
@@ -264,7 +248,6 @@
             }
         }
 
-        // Helper to switch screens
         function toggleState(state) {
             document.getElementById('loading-state').classList.add('hidden');
             document.getElementById('invalid-shop-state').classList.add('hidden');
@@ -288,7 +271,6 @@
 
         fileInput.onchange = e => handleFiles(Array.from(e.target.files));
 
-        // Drag & Drop Visual States
         ['dragenter', 'dragover'].forEach(e => dropzone.addEventListener(e, (ev) => {
             ev.preventDefault(); dropzone.classList.add('drag-active');
         }));
@@ -300,18 +282,13 @@
             handleFiles(Array.from(e.dataTransfer.files));
         });
 
-        /**
-         * 🟢 Processing Files Logic 🟢
-         */
         function handleFiles(files) {
             files.forEach(file => {
-                // Filter size
                 if (file.size > globalSettings.maxFileSize * 1024 * 1024) {
                     window.showPopup("File Limit Exceeded", `${file.name} is too large. Max ${globalSettings.maxFileSize}MB allowed.`, "error");
                     return;
                 }
 
-                // Simulate Page Count (Production: use pdf.js)
                 const isPdf = file.name.toLowerCase().endsWith('.pdf');
                 const pages = isPdf ? Math.floor(Math.random() * 12) + 1 : 1;
 
@@ -320,36 +297,22 @@
                     fileData: file,
                     fileName: file.name,
                     pages: pages,
-                    settings: { colorMode: 'bw' }, // default
+                    settings: { colorMode: 'bw' },
                     price: 0
                 };
                 selectedFiles.push(fileObj);
             });
             renderFileList();
-            fileInput.value = ''; // allow same file again
+            fileInput.value = '';
         }
 
-        /**
-         * 🟢 TIERED PRICING ENGINE 🟢
-         * Standard vs Bulk rates logic
-         */
         function calculatePrice(pages, mode) {
             const threshold = shopRates.tierThreshold;
             const isStandard = pages <= threshold;
-            
-            let rate = 0;
-            if (mode === 'bw') {
-                rate = isStandard ? shopRates.bwRate : shopRates.bwRateBulk;
-            } else {
-                rate = isStandard ? shopRates.colorRate : shopRates.colorRateBulk;
-            }
-            
+            let rate = mode === 'bw' ? (isStandard ? shopRates.bwRate : shopRates.bwRateBulk) : (isStandard ? shopRates.colorRate : shopRates.colorRateBulk);
             return pages * rate;
         }
 
-        /**
-         * UI RENDERER: FILE CARDS
-         */
         function renderFileList() {
             const container = document.getElementById('file-list');
             container.innerHTML = "";
@@ -385,7 +348,6 @@
                 container.appendChild(card);
             });
 
-            // Handle Summary Visibility
             const hasFiles = selectedFiles.length > 0;
             document.getElementById('summary-bar').classList.toggle('hidden', !hasFiles);
             document.getElementById('instructions-box').classList.toggle('hidden', !hasFiles);
@@ -393,7 +355,6 @@
             lucide.createIcons();
         }
 
-        // Binders for buttons in cards
         window.updateFileMode = (id, mode) => {
             const f = selectedFiles.find(x => x.id === id);
             if (f) { f.settings.colorMode = mode; renderFileList(); }
@@ -409,9 +370,8 @@
         // ==========================================
         
         async function getNextToken() {
-            const today = new Date().toISOString().split('T')[0]; // Format: YYYY-MM-DD
+            const today = new Date().toISOString().split('T')[0];
             const counterRef = doc(db, 'artifacts', appId, 'public', 'data', 'counters', `${currentShopId}_${today}`);
-            
             try {
                 let tokenNum = 1;
                 await runTransaction(db, async (transaction) => {
@@ -420,19 +380,17 @@
                         tokenNum = snap.data().lastToken + 1;
                         transaction.update(counterRef, { lastToken: tokenNum });
                     } else {
-                        // First order of the new day
                         transaction.set(counterRef, { lastToken: 1, shopId: currentShopId, date: today });
                     }
                 });
                 return tokenNum;
             } catch (e) {
-                console.warn("Transaction failed, using random fallback.");
                 return Math.floor(Math.random() * 900) + 100;
             }
         }
 
         // ==========================================
-        // 4. ORDER SUBMISSION (STORAGE + DB)
+        // 4. ORDER SUBMISSION
         // ==========================================
 
         const btnSubmit = document.getElementById('btn-submit');
@@ -447,7 +405,6 @@
                 const tokenNum = await getNextToken();
                 const uploadedFilesData = [];
 
-                // Parallel Upload Loop
                 for (let fObj of selectedFiles) {
                     const uniqueSuffix = Date.now() + '-' + Math.round(Math.random() * 1E9);
                     const cleanName = fObj.fileName.replace(/[^a-z0-9.]/gi, '_').toLowerCase();
@@ -458,65 +415,45 @@
                     const downloadUrl = await getDownloadURL(uploadTask.ref);
                     
                     uploadedFilesData.push({
-                        fileName: fObj.fileName,
-                        fileUrl: downloadUrl,
-                        filePath: storagePath,
-                        pages: fObj.pages,
-                        price: fObj.price,
-                        settings: fObj.settings
+                        fileName: fObj.fileName, fileUrl: downloadUrl,
+                        filePath: storagePath, pages: fObj.pages,
+                        price: fObj.price, settings: fObj.settings
                     });
                 }
 
-                // Final Order Document (Rule 1 Compliant)
                 const orderData = {
-                    shopId: currentShopId,
-                    customerId: user.uid,
-                    token: tokenNum,
-                    files: uploadedFilesData,
+                    shopId: currentShopId, customerId: user.uid,
+                    token: tokenNum, files: uploadedFilesData,
                     billEstimate: document.getElementById('order-total').textContent,
-                    status: "Pending",
-                    notes: document.getElementById('order-notes').value || "",
+                    status: "Pending", notes: document.getElementById('order-notes').value || "",
                     createdAt: serverTimestamp(),
                     expiresAt: Date.now() + (globalSettings.autoDeleteHours * 3600000)
                 };
 
                 await addDoc(collection(db, 'artifacts', appId, 'public', 'data', 'prints'), orderData);
-
-                // Show Success Screen
                 document.getElementById('final-token').textContent = `#${tokenNum}`;
                 document.getElementById('success-modal').classList.remove('hidden');
-                
             } catch (e) { 
-                console.error("Submission Error:", e); 
-                window.showPopup("Upload Failed", "Connectivity issue detected. Please check your internet and try again.", "error"); 
+                console.error(e);
+                window.showPopup("Upload Failed", "Connectivity issue detected. Please check your internet.", "error"); 
                 btnSubmit.innerHTML = `Send Order <i data-lucide="send" class="w-5 h-5"></i>`; 
                 btnSubmit.disabled = false; 
                 lucide.createIcons();
             }
         };
 
-        // ==========================================
-        // 5. GLOBAL UI UTILITIES
-        // ==========================================
-
         window.showPopup = (title, msg, type = 'info') => {
             const popup = document.getElementById('custom-popup');
             const iconCon = document.getElementById('popup-icon-container');
             document.getElementById('popup-title').textContent = title;
             document.getElementById('popup-msg').textContent = msg;
-            
             iconCon.className = `w-16 h-16 rounded-full flex items-center justify-center mx-auto mb-6 ${type === 'error' ? 'bg-red-50 text-red-500' : 'bg-blue-50 text-blue-600'}`;
             iconCon.innerHTML = `<i data-lucide="${type === 'error' ? 'x-circle' : 'info'}" class="w-8 h-8"></i>`;
-            
             popup.classList.remove('hidden');
             lucide.createIcons();
         };
 
-        window.closePopup = () => {
-            document.getElementById('custom-popup').classList.add('hidden');
-        };
-
-        // Initialized Icons
+        window.closePopup = () => document.getElementById('custom-popup').classList.add('hidden');
         lucide.createIcons();
     </script>
 </body>
