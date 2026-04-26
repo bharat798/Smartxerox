@@ -6,7 +6,7 @@ import { ref, deleteObject } from "https://www.gstatic.com/firebasejs/10.8.0/fir
 // --- Configuration & State ---
 const appId = typeof __app_id !== 'undefined' ? __app_id : 'default-app-id';
 let currentShopId = null;
-let currentShopRef = null; // Stores the detected path for rate updates
+let currentShopRef = null; 
 let soundEnabled = true;
 let previousPendingCount = 0;
 let qFilter = 'all';
@@ -15,10 +15,14 @@ let allJobs = [];
 let deleteContext = null; 
 let expiryContextId = null; 
 
+// 🟢 Fixed: Declared globalAnalyticsData to resolve ReferenceError 🟢
+let globalAnalyticsData = []; 
+let selectedMonth = new Date().toISOString().slice(0, 7); 
+let isMonthViewActive = false; 
+
 // --- Helper: Format Date to DD/MM/YYYY ---
 function formatToDDMMYYYY(dateStr) {
     if(!dateStr) return "";
-    // Handle ISO string or YYYY-MM-DD
     const dateObj = new Date(dateStr);
     if (isNaN(dateObj)) {
         const parts = dateStr.split('-'); 
@@ -91,7 +95,6 @@ onAuthStateChanged(auth, async (user) => {
             const emailDisp = document.getElementById('shop-user-email');
             if(emailDisp) emailDisp.textContent = user.email || "Partner Account";
 
-            // Multi-path search for user profile
             const pathsToTry = [
                 doc(db, 'artifacts', appId, 'users', user.uid, 'profile', 'data'),
                 doc(db, 'artifacts', appId, 'users', user.uid),
@@ -110,7 +113,6 @@ onAuthStateChanged(auth, async (user) => {
             if (userData && userData.shopId) {
                 currentShopId = userData.shopId;
                 
-                // Search for the correct shop path and store it
                 const shopPaths = [
                     doc(db, 'artifacts', appId, 'public', 'data', 'shops', currentShopId),
                     doc(db, 'shops', currentShopId)
@@ -121,7 +123,7 @@ onAuthStateChanged(auth, async (user) => {
                     const sSnap = await getDoc(sRef);
                     if(sSnap.exists()) {
                         shopData = sSnap.data();
-                        currentShopRef = sRef; // Set reference for saveShopRates
+                        currentShopRef = sRef; 
                         break;
                     }
                 }
@@ -239,9 +241,32 @@ function buildCard(j) {
         else timeLabel = Math.max(0, remainingMinutes) + "m left";
     }
 
-    const fileActionHtml = j.fileDeleted ? 
-        `<div class="text-[10px] font-bold text-red-500 bg-red-50 px-3 py-2 rounded-xl uppercase border border-red-100 flex items-center gap-1"><i data-lucide="file-x-2" class="w-3 h-3"></i> Document Deleted</div>` :
-        `<a href="${j.fileUrl}" target="_blank" class="text-[10px] font-black text-blue-600 bg-blue-100 px-3 py-2 rounded-xl uppercase hover:bg-blue-200 transition-colors flex items-center gap-1"><i data-lucide="external-link" class="w-3 h-3"></i> Open</a>`;
+    // 🟢 Support for Multiple Files per Token 🟢
+    let filesHtml = "";
+    if (j.files && Array.isArray(j.files)) {
+        filesHtml = j.files.map(f => `
+            <div class="flex items-center gap-3 bg-slate-50 p-3 rounded-2xl border border-slate-100 mb-2">
+                <div class="p-2 bg-white rounded-xl shadow-xs"><i data-lucide="file-text" class="w-5 h-5 ${f.settings?.colorMode === 'color' ? 'text-purple-500' : 'text-blue-500'}"></i></div>
+                <div class="flex-1 min-w-0">
+                    <p class="text-xs font-bold text-slate-700 truncate">${f.fileName}</p>
+                    <p class="text-[9px] font-bold text-slate-400 uppercase tracking-tighter">${f.settings?.colorMode || 'B&W'} • ${f.pages || 1} Pages • ₹${f.price || 0}</p>
+                </div>
+                ${!j.fileDeleted ? `<a href="${f.fileUrl}" target="_blank" class="text-[9px] font-black text-blue-600 bg-blue-100 px-2.5 py-1.5 rounded-lg uppercase">Open</a>` : ''}
+            </div>
+        `).join('');
+    } else {
+        // Fallback for single file (old format)
+        filesHtml = `
+            <div class="flex items-center gap-3 bg-slate-50 p-3 rounded-2xl border border-slate-100 mb-2">
+                <div class="p-2 bg-white rounded-xl shadow-xs"><i data-lucide="file-text" class="w-5 h-5 text-blue-500"></i></div>
+                <div class="flex-1 min-w-0">
+                    <p class="text-sm font-bold text-slate-700 truncate">${j.fileName}</p>
+                    <p class="text-[10px] font-bold text-slate-400 uppercase tracking-tighter">${j.settings?.colorMode || 'B&W'} • ${j.settings?.paperSize || 'A4'} • ${j.settings?.copies || 1} sets</p>
+                </div>
+                ${!j.fileDeleted ? `<a href="${j.fileUrl}" target="_blank" class="text-[10px] font-black text-blue-600 bg-blue-100 px-3 py-2 rounded-xl uppercase">Open</a>` : ''}
+            </div>
+        `;
+    }
 
     const priceBadge = `<div class="bg-emerald-500 text-white px-2 py-1 rounded-lg text-xs font-black shadow-sm">₹${j.billEstimate || 0}</div>`;
 
@@ -260,16 +285,11 @@ function buildCard(j) {
             </div>
         </div>
         
-        <div class="flex items-center gap-3 bg-slate-50 p-3 rounded-2xl border border-slate-100 mb-4">
-            <div class="p-2 bg-white rounded-xl shadow-xs"><i data-lucide="file-text" class="w-5 h-5 text-blue-500"></i></div>
-            <div class="flex-1 min-w-0">
-                <p class="text-sm font-bold text-slate-700 truncate">${j.fileName}</p>
-                <p class="text-[10px] font-bold text-slate-400 uppercase tracking-tighter">${j.settings.colorMode} • ${j.settings.paperSize} • ${j.settings.copies} sets</p>
-            </div>
-            ${fileActionHtml}
+        <div class="mb-4">
+            ${filesHtml}
         </div>
 
-        ${j.settings.notes ? `<div class="mb-4 text-[11px] bg-amber-50 p-3 rounded-xl text-amber-700 italic border border-amber-100 flex gap-2"><span>Note: ${j.settings.notes}</span></div>` : ''}
+        ${j.settings?.notes ? `<div class="mb-4 text-[11px] bg-amber-50 p-3 rounded-xl text-amber-700 italic border border-amber-100 flex gap-2"><span>Note: ${j.settings.notes}</span></div>` : ''}
 
         <div class="flex gap-2">
             ${!isDone ? 
@@ -410,7 +430,7 @@ function updateAnalyticsUI() {
 }
 
 // ==========================================
-// 7. SHOP PRICING LOGIC (Decimals Fixed)
+// 7. SHOP PRICING LOGIC (🟢 TIERED PRICING FIXED 🟢)
 // ==========================================
 async function loadShopPricingUI() {
     if(!currentShopRef) return; 
@@ -418,37 +438,36 @@ async function loadShopPricingUI() {
         const snap = await getDoc(currentShopRef);
         if(snap.exists()){
             const d = snap.data();
-            const bwInput = document.getElementById('bw-rate-input');
-            const colorInput = document.getElementById('color-rate-input');
-            if(bwInput) bwInput.value = d.bwRate || 2;
-            if(colorInput) colorInput.value = d.colorRate || 10;
+            if(document.getElementById('bw-rate-input')) document.getElementById('bw-rate-input').value = d.bwRate || 2;
+            if(document.getElementById('bw-bulk-input')) document.getElementById('bw-bulk-input').value = d.bwRateBulk || d.bwRate || 2;
+            if(document.getElementById('color-rate-input')) document.getElementById('color-rate-input').value = d.colorRate || 10;
+            if(document.getElementById('color-bulk-input')) document.getElementById('color-bulk-input').value = d.colorRateBulk || d.colorRate || 10;
+            if(document.getElementById('tier-threshold')) document.getElementById('tier-threshold').value = d.tierThreshold || 3;
         }
     } catch(e) { console.error(e); }
 }
 
 window.saveShopRates = async () => {
-    const bwRaw = document.getElementById('bw-rate-input').value;
-    const colorRaw = document.getElementById('color-rate-input').value;
+    const bw = parseFloat(document.getElementById('bw-rate-input').value);
+    const bwBulk = parseFloat(document.getElementById('bw-bulk-input').value);
+    const color = parseFloat(document.getElementById('color-rate-input').value);
+    const colorBulk = parseFloat(document.getElementById('color-bulk-input').value);
+    const threshold = parseInt(document.getElementById('tier-threshold').value);
     
-    const bw = parseFloat(bwRaw);
-    const color = parseFloat(colorRaw);
-    
-    if(isNaN(bw) || isNaN(color) || bw < 0 || color < 0){
+    if(isNaN(bw) || isNaN(color) || isNaN(threshold)){
         window.showToast("Kripya sahi rate bhariye.", "error");
-        return;
-    }
-
-    if(!currentShopRef) {
-        window.showToast("Shop data loading... Please wait.", "info");
         return;
     }
 
     try {
         await updateDoc(currentShopRef, {
             bwRate: bw,
-            colorRate: color
+            bwRateBulk: bwBulk,
+            colorRate: color,
+            colorRateBulk: colorBulk,
+            tierThreshold: threshold
         });
-        window.showToast("Rates update ho gaye!", "success");
+        window.showToast("Tiered rates updated!", "success");
     } catch(e) {
         console.error("Save Rates Error:", e);
         window.showToast("Error: " + e.message, "error");
@@ -508,7 +527,6 @@ window.openExpiryModal = (id) => {
     const modal = document.getElementById('expiry-modal');
     if (modal) {
         modal.classList.remove('hidden');
-        // PROPORTIONAL ALIGNMENT FIX
         const unitSelect = document.getElementById('expiry-unit');
         const valInput = document.getElementById('expiry-val');
         if(unitSelect && valInput) {
