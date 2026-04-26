@@ -6,6 +6,7 @@ import { ref, deleteObject } from "https://www.gstatic.com/firebasejs/10.8.0/fir
 // --- Configuration & State ---
 const appId = typeof __app_id !== 'undefined' ? __app_id : 'default-app-id';
 let currentShopId = null;
+let currentShopRef = null; // Stores the detected path for rate updates
 let soundEnabled = true;
 let previousPendingCount = 0;
 let qFilter = 'all';
@@ -14,15 +15,20 @@ let allJobs = [];
 let deleteContext = null; 
 let expiryContextId = null; 
 
-// 🟢 Analytics State (Simplified - Month Picker Removed) 🟢
-let globalAnalyticsData = []; 
-
 // --- Helper: Format Date to DD/MM/YYYY ---
 function formatToDDMMYYYY(dateStr) {
     if(!dateStr) return "";
-    const parts = dateStr.split('-'); // Expects YYYY-MM-DD
-    if(parts.length !== 3) return dateStr;
-    return `${parts[2]}/${parts[1]}/${parts[0]}`;
+    // Handle ISO string or YYYY-MM-DD
+    const dateObj = new Date(dateStr);
+    if (isNaN(dateObj)) {
+        const parts = dateStr.split('-'); 
+        if(parts.length !== 3) return dateStr;
+        return `${parts[2]}/${parts[1]}/${parts[0]}`;
+    }
+    const day = String(dateObj.getDate()).padStart(2, '0');
+    const month = String(dateObj.getMonth() + 1).padStart(2, '0');
+    const year = dateObj.getFullYear();
+    return `${day}/${month}/${year}`;
 }
 
 // ==========================================
@@ -48,7 +54,7 @@ window.switchView = (name, el) => {
     
     if(name === 'done') renderDone(); 
     if(name === 'analytics') updateAnalyticsUI();
-    if(name === 'settings') loadShopPricingUI(); // 🟢 Load pricing into inputs
+    if(name === 'settings') loadShopPricingUI();
 };
 
 window.toggleSidebar = () => {
@@ -85,6 +91,7 @@ onAuthStateChanged(auth, async (user) => {
             const emailDisp = document.getElementById('shop-user-email');
             if(emailDisp) emailDisp.textContent = user.email || "Partner Account";
 
+            // Multi-path search for user profile
             const pathsToTry = [
                 doc(db, 'artifacts', appId, 'users', user.uid, 'profile', 'data'),
                 doc(db, 'artifacts', appId, 'users', user.uid),
@@ -103,6 +110,7 @@ onAuthStateChanged(auth, async (user) => {
             if (userData && userData.shopId) {
                 currentShopId = userData.shopId;
                 
+                // Search for the correct shop path and store it
                 const shopPaths = [
                     doc(db, 'artifacts', appId, 'public', 'data', 'shops', currentShopId),
                     doc(db, 'shops', currentShopId)
@@ -113,6 +121,7 @@ onAuthStateChanged(auth, async (user) => {
                     const sSnap = await getDoc(sRef);
                     if(sSnap.exists()) {
                         shopData = sSnap.data();
+                        currentShopRef = sRef; // Set reference for saveShopRates
                         break;
                     }
                 }
@@ -127,7 +136,7 @@ onAuthStateChanged(auth, async (user) => {
                 generateShopQR();
                 startListeningToQueue();
                 initAnalyticsListener(); 
-                loadShopPricingUI(); // Init rates
+                loadShopPricingUI(); 
             } else {
                 document.getElementById('ui-shop-name').textContent = "Unauthorized Access";
             }
@@ -350,22 +359,8 @@ window.markJobAsDone = async (id) => {
 };
 
 // ==========================================
-// 6. ANALYTICS LOGIC (🟢 MONTH PICKER REMOVED 🟢)
+// 6. ANALYTICS LOGIC (Simplified)
 // ==========================================
-function setupAnalyticsHeader() {
-    const container = document.querySelector('#view-analytics div.bg-white.rounded-3xl.border div.p-6.border-b');
-    if (!container) return;
-
-    // Header updated to remove 'Today' and 'Month Picker'
-    container.innerHTML = `
-        <div class="flex items-center gap-4 w-full">
-            <h3 class="font-black text-slate-800 uppercase tracking-widest text-xs flex-1">Daily Revenue Ledger</h3>
-        </div>
-    `;
-
-    if (window.lucide) window.lucide.createIcons();
-}
-
 function initAnalyticsListener() {
     const q = collection(db, 'artifacts', appId, 'public', 'data', 'shop_analytics');
     onSnapshot(q, (snapshot) => {
@@ -383,7 +378,6 @@ function updateAnalyticsUI() {
     let totalRevAllTime = 0;
     let todayRev = 0;
     let todayTok = 0;
-    
     let logs = [...globalAnalyticsData];
     const todayStr = new Date().toISOString().split('T')[0];
 
@@ -395,16 +389,10 @@ function updateAnalyticsUI() {
         }
     });
 
-    // Update Top Cards
-    const revDisp = document.getElementById('stat-earn-today');
-    const tokDisp = document.getElementById('stat-tokens-today');
-    if(revDisp) revDisp.textContent = todayRev;
-    if(tokDisp) tokDisp.textContent = todayTok;
+    if(document.getElementById('stat-earn-today')) document.getElementById('stat-earn-today').textContent = todayRev;
+    if(document.getElementById('stat-tokens-today')) document.getElementById('stat-tokens-today').textContent = todayTok;
+    if(document.getElementById('stat-earn-total')) document.getElementById('stat-earn-total').textContent = totalRevAllTime;
 
-    const totalEarnDisp = document.getElementById('stat-earn-total');
-    if(totalEarnDisp) totalEarnDisp.textContent = totalRevAllTime;
-
-    // Render All Logs (Sorted)
     logs.sort((a, b) => b.date.localeCompare(a.date));
     const tbody = document.getElementById('daily-revenue-table');
     if (tbody) {
@@ -422,13 +410,12 @@ function updateAnalyticsUI() {
 }
 
 // ==========================================
-// 7. SHOP PRICING LOGIC (🟢 NEW SECTION 🟢)
+// 7. SHOP PRICING LOGIC (Decimals Fixed)
 // ==========================================
 async function loadShopPricingUI() {
-    if(!currentShopId) return;
+    if(!currentShopRef) return; 
     try {
-        const shopRef = doc(db, 'artifacts', appId, 'public', 'data', 'shops', currentShopId);
-        const snap = await getDoc(shopRef);
+        const snap = await getDoc(currentShopRef);
         if(snap.exists()){
             const d = snap.data();
             const bwInput = document.getElementById('bw-rate-input');
@@ -440,24 +427,31 @@ async function loadShopPricingUI() {
 }
 
 window.saveShopRates = async () => {
-    const bw = parseFloat(document.getElementById('bw-rate-input').value);
-    const color = parseFloat(document.getElementById('color-rate-input').value);
+    const bwRaw = document.getElementById('bw-rate-input').value;
+    const colorRaw = document.getElementById('color-rate-input').value;
+    
+    const bw = parseFloat(bwRaw);
+    const color = parseFloat(colorRaw);
     
     if(isNaN(bw) || isNaN(color) || bw < 0 || color < 0){
         window.showToast("Kripya sahi rate bhariye.", "error");
         return;
     }
 
+    if(!currentShopRef) {
+        window.showToast("Shop data loading... Please wait.", "info");
+        return;
+    }
+
     try {
-        const shopRef = doc(db, 'artifacts', appId, 'public', 'data', 'shops', currentShopId);
-        await updateDoc(shopRef, {
+        await updateDoc(currentShopRef, {
             bwRate: bw,
             colorRate: color
         });
         window.showToast("Rates update ho gaye!", "success");
     } catch(e) {
-        console.error(e);
-        window.showToast("Rates save karne mein galti hui.", "error");
+        console.error("Save Rates Error:", e);
+        window.showToast("Error: " + e.message, "error");
     }
 };
 
@@ -514,20 +508,12 @@ window.openExpiryModal = (id) => {
     const modal = document.getElementById('expiry-modal');
     if (modal) {
         modal.classList.remove('hidden');
-        const container = modal.querySelector('.flex.gap-2.mb-6');
-        if(container) {
-            container.style.display = "flex";
-            container.style.flexWrap = "nowrap";
-            container.style.alignItems = "center";
-            container.style.justifyContent = "space-between";
-        }
+        // PROPORTIONAL ALIGNMENT FIX
         const unitSelect = document.getElementById('expiry-unit');
         const valInput = document.getElementById('expiry-val');
         if(unitSelect && valInput) {
             valInput.style.width = "65%";
             unitSelect.style.width = "35%";
-            valInput.className = "bg-slate-50 border border-slate-200 rounded-xl px-4 py-3 font-bold text-center outline-none focus:ring-2 focus:ring-blue-500";
-            unitSelect.className = "bg-slate-50 border border-slate-200 rounded-xl px-2 py-3 font-bold outline-none focus:ring-2 focus:ring-blue-500 appearance-none";
         }
     }
 };
