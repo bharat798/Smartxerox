@@ -298,5 +298,4 @@ function checkPreviousOrder() {
 document.getElementById('btn-close-recovery').onclick = () => document.getElementById('recovery-banner').classList.add('hidden');
 document.getElementById('btn-reset-app').onclick = () => location.reload();
 
-// Global Access to close popup
 window.closePopup = window.closePopup;
