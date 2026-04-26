@@ -9,10 +9,14 @@ let currentShopId = null;
 let soundEnabled = true;
 let previousPendingCount = 0;
 let qFilter = 'all';
-let historyDateFilter = null; // 🟢 New: For filtering history by date
+let historyDateFilter = null; 
 let allJobs = []; 
 let deleteContext = null; 
 let expiryContextId = null; 
+
+// 🟢 New State for Analytics Filtering 🟢
+let selectedMonth = new Date().toISOString().slice(0, 7); // Format: "YYYY-MM"
+let isMonthViewActive = false; 
 
 // ==========================================
 // 1. UI NAVIGATION & SIDEBAR (Window Scope)
@@ -24,12 +28,10 @@ window.switchView = (name, el) => {
     const target = document.getElementById('view-' + name);
     if (target) target.classList.add('active');
     
-    // If switching to history, we might want to clear or show specific date
     if (name !== 'done') historyDateFilter = null; 
 
     if (el) el.classList.add('active-nav');
     else {
-        // Fallback for manual switches (like from analytics)
         const navId = 'nav-' + name;
         if(document.getElementById(navId)) document.getElementById(navId).classList.add('active-nav');
     }
@@ -37,7 +39,7 @@ window.switchView = (name, el) => {
     if (window.innerWidth < 768) window.toggleSidebar();
     if (window.lucide) window.lucide.createIcons();
     
-    if(name === 'done') renderDone(); // Refresh history view
+    if(name === 'done') renderDone(); 
 };
 
 window.toggleSidebar = () => {
@@ -59,7 +61,6 @@ window.filterQ = (f, btn) => {
     renderQueue();
 };
 
-// 🟢 New: Filter history by clicking a date in Ledger 🟢
 window.filterHistoryByDate = (dateStr) => {
     historyDateFilter = dateStr;
     window.switchView('done'); 
@@ -116,6 +117,7 @@ onAuthStateChanged(auth, async (user) => {
 
                 generateShopQR();
                 startListeningToQueue();
+                setupAnalyticsHeader(); // 🟢 Init Month Picker UI
                 loadShopAnalytics();
             } else {
                 document.getElementById('ui-shop-name').textContent = "Unauthorized Access";
@@ -175,10 +177,8 @@ function startListeningToQueue() {
             data.id = docSnap.id;
             if (data.shopId !== currentShopId) return;
 
-            // Auto-Delete expired jobs ONLY if document hasn't been manually deleted
             if (data.expiresAt && now > data.expiresAt && !data.fileDeleted) {
                 if (data.filePath) deleteObject(ref(storage, data.filePath)).catch(() => {});
-                // We keep the record for analytics/history but mark file as deleted
                 updateDoc(doc(db, 'artifacts', appId, 'public', 'data', 'prints', data.id), { 
                     fileDeleted: true,
                     fileUrl: null,
@@ -281,7 +281,6 @@ function renderDone() {
     const dc = document.getElementById('done-cards');
     if (!dc) return;
     
-    // 🟢 GROUPING BY DATE 🟢
     let filtered = allJobs.filter(j => j.status === 'Done');
     
     if (historyDateFilter) {
@@ -293,7 +292,6 @@ function renderDone() {
         return;
     }
 
-    // Grouping logic for UI
     const groups = {};
     filtered.forEach(j => {
         const date = new Date(j.createdAt).toLocaleDateString(undefined, { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' });
@@ -337,7 +335,127 @@ window.markJobAsDone = async (id) => {
 };
 
 // ==========================================
-// 6. PROFESSIONAL MODALS (Delete & Timer)
+// 6. ANALYTICS LOGIC (🟢 MONTH PICKER & DYNAMIC CARDS 🟢)
+// ==========================================
+function setupAnalyticsHeader() {
+    const container = document.querySelector('#view-analytics div.bg-white.rounded-3xl.border div.p-6.border-b');
+    if (!container) return;
+
+    // Calendar Icon ko clickable banana aur Today button add karna
+    container.innerHTML = `
+        <div class="flex items-center gap-4 w-full">
+            <h3 class="font-black text-slate-800 uppercase tracking-widest text-xs flex-1">Daily Revenue Ledger</h3>
+            <div class="flex items-center gap-2 bg-slate-100 p-1 rounded-xl border border-slate-200">
+                <button id="btn-analytics-today" class="px-3 py-1.5 text-[10px] font-black uppercase text-slate-600 hover:bg-white hover:shadow-sm rounded-lg transition-all">Today</button>
+                <div class="h-4 w-px bg-slate-300"></div>
+                <div class="relative group">
+                    <button id="btn-analytics-calendar" class="p-1.5 text-blue-600 hover:bg-blue-50 rounded-lg transition-colors flex items-center gap-2">
+                        <i data-lucide="calendar" class="w-4 h-4"></i>
+                        <span id="display-selected-month" class="text-[10px] font-black uppercase">${formatMonthLabel(selectedMonth)}</span>
+                    </button>
+                    <input type="month" id="analytics-month-input" class="absolute inset-0 opacity-0 cursor-pointer" value="${selectedMonth}">
+                </div>
+            </div>
+        </div>
+    `;
+
+    const monthInput = document.getElementById('analytics-month-input');
+    const todayBtn = document.getElementById('btn-analytics-today');
+
+    monthInput.onchange = (e) => {
+        selectedMonth = e.target.value;
+        isMonthViewActive = true; 
+        document.getElementById('display-selected-month').textContent = formatMonthLabel(selectedMonth);
+        loadShopAnalytics(); // Refresh
+        window.showToast(`Viewing ${formatMonthLabel(selectedMonth)} records`, "info");
+    };
+
+    todayBtn.onclick = () => {
+        selectedMonth = new Date().toISOString().slice(0, 7);
+        monthInput.value = selectedMonth;
+        isMonthViewActive = false; 
+        document.getElementById('display-selected-month').textContent = formatMonthLabel(selectedMonth);
+        loadShopAnalytics();
+        window.showToast("Switched to Today's view", "success");
+    };
+
+    if (window.lucide) window.lucide.createIcons();
+}
+
+function formatMonthLabel(val) {
+    const d = new Date(val + "-01");
+    return d.toLocaleDateString(undefined, { month: 'short', year: 'numeric' });
+}
+
+function loadShopAnalytics() {
+    const q = collection(db, 'artifacts', appId, 'public', 'data', 'shop_analytics');
+    onSnapshot(q, (snapshot) => {
+        let totalRevAllTime = 0;
+        let filteredMonthRev = 0;
+        let filteredMonthTok = 0;
+        let todayRev = 0;
+        let todayTok = 0;
+        
+        let logs = [];
+        const todayStr = new Date().toISOString().split('T')[0];
+
+        snapshot.forEach(d => {
+            const data = d.data();
+            if (data.shopId !== currentShopId) return;
+
+            totalRevAllTime += (data.revenue || 0);
+
+            // Calculation for the selected month
+            if (data.date.startsWith(selectedMonth)) {
+                filteredMonthRev += (data.revenue || 0);
+                filteredMonthTok += (data.totalTokens || 0);
+                logs.push(data);
+            }
+
+            // Calculation for specific "Today"
+            if (data.date === todayStr) {
+                todayRev = data.revenue;
+                todayTok = data.totalTokens;
+            }
+        });
+
+        // 🟢 Update Cards Dynamically 🟢
+        const cardRevTitle = document.querySelector('#view-analytics div.bg-gradient-to-br p');
+        const cardTokTitle = document.querySelector('#view-analytics div.bg-white.p-8.rounded-\\[2rem\\] p');
+
+        if (isMonthViewActive) {
+            if (cardRevTitle) cardRevTitle.textContent = `${formatMonthLabel(selectedMonth)} REVENUE`;
+            if (cardTokTitle) cardTokTitle.textContent = `${formatMonthLabel(selectedMonth)} TOKENS`;
+            document.getElementById('stat-earn-today').textContent = filteredMonthRev;
+            document.getElementById('stat-tokens-today').textContent = filteredMonthTok;
+        } else {
+            if (cardRevTitle) cardRevTitle.textContent = "TODAY'S REVENUE";
+            if (cardTokTitle) cardTokTitle.textContent = "TODAY'S TOKENS";
+            document.getElementById('stat-earn-today').textContent = todayRev;
+            document.getElementById('stat-tokens-today').textContent = todayTok;
+        }
+
+        document.getElementById('stat-earn-total').textContent = totalRevAllTime;
+
+        logs.sort((a, b) => b.date.localeCompare(a.date));
+        const tbody = document.getElementById('daily-revenue-table');
+        if (tbody) {
+            tbody.innerHTML = logs.map(l => `
+                <tr onclick="window.filterHistoryByDate('${l.date}')" class="hover:bg-blue-50 cursor-pointer transition-colors border-b border-slate-50 font-medium group">
+                    <td class="p-5 text-slate-600 flex items-center gap-2 group-hover:text-blue-600">
+                        <i data-lucide="calendar" class="w-4 h-4 text-slate-300 group-hover:text-blue-400"></i> ${l.date}
+                    </td>
+                    <td class="p-5 text-center text-blue-600 font-bold">${l.totalTokens}</td>
+                    <td class="p-5 text-right text-emerald-600 font-black">₹${l.revenue}</td>
+                </tr>
+            `).join('');
+            if(window.lucide) window.lucide.createIcons();
+        }
+    });
+}
+
+// ==========================================
+// 7. PROFESSIONAL MODALS
 // ==========================================
 window.askDelete = (id, path, isDoneRecord) => {
     deleteContext = { id, path, isDoneRecord };
@@ -369,9 +487,7 @@ document.getElementById('btn-confirm-delete').onclick = async () => {
         if (path && path !== 'undefined') {
             await deleteObject(ref(storage, path)).catch(() => {});
         }
-        
         if (isDoneRecord) {
-            // 🟢 KEEP RECORD: Update Firestore to mark as deleted 🟢
             await updateDoc(doc(db, 'artifacts', appId, 'public', 'data', 'prints', id), {
                 fileDeleted: true,
                 fileUrl: null,
@@ -379,7 +495,6 @@ document.getElementById('btn-confirm-delete').onclick = async () => {
             });
             window.showToast("Document deleted, record kept.", "info");
         } else {
-            // REMOVE FULL ORDER (Pending/Printing)
             await deleteDoc(doc(db, 'artifacts', appId, 'public', 'data', 'prints', id));
             window.showToast("Order cancelled.", "info");
         }
@@ -412,41 +527,6 @@ document.getElementById('btn-save-expiry').onclick = async () => {
         window.closeExpiryModal();
     } catch(e) { console.error(e); }
 };
-
-// ==========================================
-// 7. ANALYTICS LOADER
-// ==========================================
-function loadShopAnalytics() {
-    const q = collection(db, 'artifacts', appId, 'public', 'data', 'shop_analytics');
-    onSnapshot(q, (snapshot) => {
-        let totalRev = 0, todayRev = 0, todayTok = 0, logs = [];
-        const today = new Date().toISOString().split('T')[0];
-        snapshot.forEach(d => {
-            const data = d.data();
-            if (data.shopId !== currentShopId) return;
-            totalRev += (data.revenue || 0);
-            if (data.date === today) { todayRev = data.revenue; todayTok = data.totalTokens; }
-            logs.push(data);
-        });
-        if(document.getElementById('stat-earn-total')) document.getElementById('stat-earn-total').textContent = totalRev;
-        if(document.getElementById('stat-earn-today')) document.getElementById('stat-earn-today').textContent = todayRev;
-        if(document.getElementById('stat-tokens-today')) document.getElementById('stat-tokens-today').textContent = todayTok;
-        logs.sort((a, b) => b.date.localeCompare(a.date));
-        const tbody = document.getElementById('daily-revenue-table');
-        if (tbody) {
-            tbody.innerHTML = logs.map(l => `
-                <tr onclick="window.filterHistoryByDate('${l.date}')" class="hover:bg-blue-50 cursor-pointer transition-colors border-b border-slate-50 font-medium group">
-                    <td class="p-5 text-slate-600 flex items-center gap-2 group-hover:text-blue-600">
-                        <i data-lucide="calendar" class="w-4 h-4 text-slate-300 group-hover:text-blue-400"></i> ${l.date}
-                    </td>
-                    <td class="p-5 text-center text-blue-600 font-bold">${l.totalTokens}</td>
-                    <td class="p-5 text-right text-emerald-600 font-black">₹${l.revenue}</td>
-                </tr>
-            `).join('');
-            if(window.lucide) window.lucide.createIcons();
-        }
-    });
-}
 
 window.toggleSound = () => { soundEnabled = !soundEnabled; window.showToast(soundEnabled ? "Sound ON" : "Sound Muted"); };
 
