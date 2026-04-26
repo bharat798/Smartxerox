@@ -14,8 +14,8 @@ let allJobs = [];
 let deleteContext = null; 
 let expiryContextId = null; 
 
-// 🟢 New State for Analytics Filtering 🟢
-let selectedMonth = new Date().toISOString().slice(0, 7); // Format: "YYYY-MM"
+// 🟢 Analytics Filtering State 🟢
+let selectedMonth = new Date().toISOString().slice(0, 7); // Default: "YYYY-MM"
 let isMonthViewActive = false; 
 
 // ==========================================
@@ -40,6 +40,7 @@ window.switchView = (name, el) => {
     if (window.lucide) window.lucide.createIcons();
     
     if(name === 'done') renderDone(); 
+    if(name === 'analytics') setupAnalyticsHeader(); 
 };
 
 window.toggleSidebar = () => {
@@ -117,7 +118,7 @@ onAuthStateChanged(auth, async (user) => {
 
                 generateShopQR();
                 startListeningToQueue();
-                setupAnalyticsHeader(); // 🟢 Init Month Picker UI
+                setupAnalyticsHeader();
                 loadShopAnalytics();
             } else {
                 document.getElementById('ui-shop-name').textContent = "Unauthorized Access";
@@ -225,15 +226,21 @@ function buildCard(j) {
         `<div class="text-[10px] font-bold text-red-500 bg-red-50 px-3 py-2 rounded-xl uppercase border border-red-100 flex items-center gap-1"><i data-lucide="file-x-2" class="w-3 h-3"></i> Document Deleted</div>` :
         `<a href="${j.fileUrl}" target="_blank" class="text-[10px] font-black text-blue-600 bg-blue-100 px-3 py-2 rounded-xl uppercase hover:bg-blue-200 transition-colors flex items-center gap-1"><i data-lucide="external-link" class="w-3 h-3"></i> Open</a>`;
 
+    // 🟢 PRICE DISPLAY ADDED TO CARD 🟢
+    const priceBadge = `<div class="bg-emerald-500 text-white px-2 py-1 rounded-lg text-xs font-black shadow-sm">₹${j.billEstimate || 0}</div>`;
+
     return `
     <div class="bg-white rounded-2xl p-5 border border-slate-200 shadow-sm relative overflow-hidden transition-all hover:shadow-md ${isDone ? 'opacity-75' : ''}">
         <div class="absolute left-0 top-0 bottom-0 w-1.5 ${statusCol}"></div>
         <div class="flex justify-between items-start mb-4">
-            <div class="bg-slate-900 text-white px-4 py-1.5 rounded-xl text-xl font-black">#${j.token}</div>
+            <div class="flex items-center gap-2">
+                <div class="bg-slate-900 text-white px-3 py-1.5 rounded-xl text-xl font-black">#${j.token}</div>
+                ${priceBadge}
+            </div>
             <div class="flex flex-col items-end">
                 <div class="text-[10px] font-black text-slate-400 uppercase tracking-widest bg-slate-100 px-2 py-1 rounded-md">${time}</div>
-                ${isDone && timeLabel ? `<div class="text-[9px] font-bold text-blue-500 mt-1 flex items-center gap-1"><i data-lucide="clock" class="w-3 h-3"></i> ${timeLabel}</div>` : ''}
-                ${j.fileDeleted ? `<div class="text-[9px] font-bold text-slate-400 mt-1 italic">Record Only</div>` : ''}
+                ${isDone && timeLabel && !j.fileDeleted ? `<div class="text-[9px] font-bold text-blue-500 mt-1 flex items-center gap-1"><i data-lucide="clock" class="w-3 h-3"></i> ${timeLabel}</div>` : ''}
+                ${j.fileDeleted ? `<div class="text-[9px] font-bold text-slate-400 mt-1 italic">Record Kept</div>` : ''}
             </div>
         </div>
         
@@ -335,25 +342,22 @@ window.markJobAsDone = async (id) => {
 };
 
 // ==========================================
-// 6. ANALYTICS LOGIC (🟢 MONTH PICKER & DYNAMIC CARDS 🟢)
+// 6. ANALYTICS LOGIC (🟢 MONTH PICKER FIX 🟢)
 // ==========================================
 function setupAnalyticsHeader() {
     const container = document.querySelector('#view-analytics div.bg-white.rounded-3xl.border div.p-6.border-b');
     if (!container) return;
 
-    // Calendar Icon ko clickable banana aur Today button add karna
     container.innerHTML = `
         <div class="flex items-center gap-4 w-full">
             <h3 class="font-black text-slate-800 uppercase tracking-widest text-xs flex-1">Daily Revenue Ledger</h3>
-            <div class="flex items-center gap-2 bg-slate-100 p-1 rounded-xl border border-slate-200">
+            <div class="flex items-center gap-2 bg-slate-100 p-1.5 rounded-xl border border-slate-200">
                 <button id="btn-analytics-today" class="px-3 py-1.5 text-[10px] font-black uppercase text-slate-600 hover:bg-white hover:shadow-sm rounded-lg transition-all">Today</button>
                 <div class="h-4 w-px bg-slate-300"></div>
-                <div class="relative group">
-                    <button id="btn-analytics-calendar" class="p-1.5 text-blue-600 hover:bg-blue-50 rounded-lg transition-colors flex items-center gap-2">
-                        <i data-lucide="calendar" class="w-4 h-4"></i>
-                        <span id="display-selected-month" class="text-[10px] font-black uppercase">${formatMonthLabel(selectedMonth)}</span>
-                    </button>
-                    <input type="month" id="analytics-month-input" class="absolute inset-0 opacity-0 cursor-pointer" value="${selectedMonth}">
+                <div class="relative flex items-center gap-2 px-2 py-1.5 bg-white shadow-sm border border-slate-200 rounded-lg">
+                    <i data-lucide="calendar" class="w-3.5 h-3.5 text-blue-600"></i>
+                    <span id="display-selected-month" class="text-[10px] font-black uppercase text-slate-700">${formatMonthLabel(selectedMonth)}</span>
+                    <input type="month" id="analytics-month-input" class="absolute inset-0 opacity-0 cursor-pointer w-full" value="${selectedMonth}">
                 </div>
             </div>
         </div>
@@ -362,22 +366,28 @@ function setupAnalyticsHeader() {
     const monthInput = document.getElementById('analytics-month-input');
     const todayBtn = document.getElementById('btn-analytics-today');
 
-    monthInput.onchange = (e) => {
-        selectedMonth = e.target.value;
-        isMonthViewActive = true; 
-        document.getElementById('display-selected-month').textContent = formatMonthLabel(selectedMonth);
-        loadShopAnalytics(); // Refresh
-        window.showToast(`Viewing ${formatMonthLabel(selectedMonth)} records`, "info");
-    };
+    if (monthInput) {
+        monthInput.addEventListener('change', (e) => {
+            selectedMonth = e.target.value;
+            isMonthViewActive = true; 
+            const displayEl = document.getElementById('display-selected-month');
+            if(displayEl) displayEl.textContent = formatMonthLabel(selectedMonth);
+            loadShopAnalytics(); 
+            window.showToast(`Showing ${formatMonthLabel(selectedMonth)}`, "info");
+        });
+    }
 
-    todayBtn.onclick = () => {
-        selectedMonth = new Date().toISOString().slice(0, 7);
-        monthInput.value = selectedMonth;
-        isMonthViewActive = false; 
-        document.getElementById('display-selected-month').textContent = formatMonthLabel(selectedMonth);
-        loadShopAnalytics();
-        window.showToast("Switched to Today's view", "success");
-    };
+    if (todayBtn) {
+        todayBtn.onclick = () => {
+            selectedMonth = new Date().toISOString().slice(0, 7);
+            if(monthInput) monthInput.value = selectedMonth;
+            isMonthViewActive = false; 
+            const displayEl = document.getElementById('display-selected-month');
+            if(displayEl) displayEl.textContent = formatMonthLabel(selectedMonth);
+            loadShopAnalytics();
+            window.showToast("Back to Today's view", "success");
+        };
+    }
 
     if (window.lucide) window.lucide.createIcons();
 }
@@ -405,37 +415,40 @@ function loadShopAnalytics() {
 
             totalRevAllTime += (data.revenue || 0);
 
-            // Calculation for the selected month
             if (data.date.startsWith(selectedMonth)) {
                 filteredMonthRev += (data.revenue || 0);
                 filteredMonthTok += (data.totalTokens || 0);
                 logs.push(data);
             }
 
-            // Calculation for specific "Today"
             if (data.date === todayStr) {
                 todayRev = data.revenue;
                 todayTok = data.totalTokens;
             }
         });
 
-        // 🟢 Update Cards Dynamically 🟢
+        // 🟢 Top Cards Title Update Logic 🟢
         const cardRevTitle = document.querySelector('#view-analytics div.bg-gradient-to-br p');
         const cardTokTitle = document.querySelector('#view-analytics div.bg-white.p-8.rounded-\\[2rem\\] p');
 
         if (isMonthViewActive) {
             if (cardRevTitle) cardRevTitle.textContent = `${formatMonthLabel(selectedMonth)} REVENUE`;
             if (cardTokTitle) cardTokTitle.textContent = `${formatMonthLabel(selectedMonth)} TOKENS`;
-            document.getElementById('stat-earn-today').textContent = filteredMonthRev;
-            document.getElementById('stat-tokens-today').textContent = filteredMonthTok;
+            const revDisp = document.getElementById('stat-earn-today');
+            const tokDisp = document.getElementById('stat-tokens-today');
+            if(revDisp) revDisp.textContent = filteredMonthRev;
+            if(tokDisp) tokDisp.textContent = filteredMonthTok;
         } else {
             if (cardRevTitle) cardRevTitle.textContent = "TODAY'S REVENUE";
             if (cardTokTitle) cardTokTitle.textContent = "TODAY'S TOKENS";
-            document.getElementById('stat-earn-today').textContent = todayRev;
-            document.getElementById('stat-tokens-today').textContent = todayTok;
+            const revDisp = document.getElementById('stat-earn-today');
+            const tokDisp = document.getElementById('stat-tokens-today');
+            if(revDisp) revDisp.textContent = todayRev;
+            if(tokDisp) tokDisp.textContent = todayTok;
         }
 
-        document.getElementById('stat-earn-total').textContent = totalRevAllTime;
+        const totalEarnDisp = document.getElementById('stat-earn-total');
+        if(totalEarnDisp) totalEarnDisp.textContent = totalRevAllTime;
 
         logs.sort((a, b) => b.date.localeCompare(a.date));
         const tbody = document.getElementById('daily-revenue-table');
@@ -465,10 +478,10 @@ window.askDelete = (id, path, isDoneRecord) => {
         const desc = modal.querySelector('p');
         if (isDoneRecord) {
             title.textContent = "Delete Document Only?";
-            desc.textContent = "This will remove the file from storage but keep the transaction record for your history.";
+            desc.textContent = "Isse Storage se file delete ho jayegi lekin aapka transaction record (Price & History) rahega.";
         } else {
             title.textContent = "Cancel Order?";
-            desc.textContent = "This will permanently remove the entire order from the queue.";
+            desc.textContent = "Is order ko poori tarah queue se hata diya jayega.";
         }
         modal.classList.remove('hidden');
     }
@@ -488,15 +501,17 @@ document.getElementById('btn-confirm-delete').onclick = async () => {
             await deleteObject(ref(storage, path)).catch(() => {});
         }
         if (isDoneRecord) {
+            // Keep the record for history but mark file as gone
             await updateDoc(doc(db, 'artifacts', appId, 'public', 'data', 'prints', id), {
                 fileDeleted: true,
                 fileUrl: null,
                 filePath: null
             });
-            window.showToast("Document deleted, record kept.", "info");
+            window.showToast("File deleted, record kept.", "info");
         } else {
+            // Remove completely
             await deleteDoc(doc(db, 'artifacts', appId, 'public', 'data', 'prints', id));
-            window.showToast("Order cancelled.", "info");
+            window.showToast("Order removed.", "info");
         }
     } catch(e) { console.error(e); }
     window.closeConfirm();
