@@ -154,14 +154,16 @@
                                 <label class="block text-[10px] font-black text-slate-400 uppercase mb-2 tracking-widest">B&W Rate (Per Page)</label>
                                 <div class="relative">
                                     <span class="absolute left-4 top-1/2 -translate-y-1/2 font-bold text-slate-400">₹</span>
-                                    <input type="number" id="bw-rate-input" class="w-full bg-slate-50 border border-slate-200 rounded-2xl pl-8 pr-4 py-4 font-bold text-slate-800 focus:ring-2 focus:ring-blue-500 outline-none transition-all">
+                                    <!-- 🟢 FIXED: step="0.01" to allow floating points like 1.5, 5.3 🟢 -->
+                                    <input type="number" step="0.01" id="bw-rate-input" class="w-full bg-slate-50 border border-slate-200 rounded-2xl pl-8 pr-4 py-4 font-bold text-slate-800 focus:ring-2 focus:ring-blue-500 outline-none transition-all">
                                 </div>
                             </div>
                             <div>
                                 <label class="block text-[10px] font-black text-slate-400 uppercase mb-2 tracking-widest">Color Rate (Per Page)</label>
                                 <div class="relative">
                                     <span class="absolute left-4 top-1/2 -translate-y-1/2 font-bold text-slate-400">₹</span>
-                                    <input type="number" id="color-rate-input" class="w-full bg-slate-50 border border-slate-200 rounded-2xl pl-8 pr-4 py-4 font-bold text-slate-800 focus:ring-2 focus:ring-blue-500 outline-none transition-all">
+                                    <!-- 🟢 FIXED: step="0.01" to allow floating points like 1.5, 5.3 🟢 -->
+                                    <input type="number" step="0.01" id="color-rate-input" class="w-full bg-slate-50 border border-slate-200 rounded-2xl pl-8 pr-4 py-4 font-bold text-slate-800 focus:ring-2 focus:ring-blue-500 outline-none transition-all">
                                 </div>
                             </div>
                         </div>
