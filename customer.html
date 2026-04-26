@@ -184,7 +184,7 @@
 
         const appId = typeof __app_id !== 'undefined' ? __app_id : 'default-app-id';
         let currentShopId = null;
-        let shopRates = { bw: 2, color: 10 };
+        let shopRates = { bw: 2, color: 10 }; // Default fallbacks
         let currentFile = null;
         let simulatedPageCount = 0;
 
@@ -229,12 +229,21 @@
             }
 
             try {
-                // Fetch public shop data
-                const shopDoc = await getDoc(doc(db, 'artifacts', appId, 'public', 'data', 'shops', currentShopId));
+                // 🟢 FIX: DUAL PATH DETECTION 🟢
+                // Pehle Strict path check karo, agar nahi mila toh Root path check karo
+                let shopDoc = await getDoc(doc(db, 'artifacts', appId, 'public', 'data', 'shops', currentShopId));
+                
+                if (!shopDoc.exists()) {
+                    console.warn("Shop not found in Rule 1 path, checking root collection 'shops'...");
+                    shopDoc = await getDoc(doc(db, 'shops', currentShopId));
+                }
+
                 if (shopDoc.exists()) {
                     const data = shopDoc.data();
                     document.getElementById('ui-shop-name').textContent = data.shopName;
                     document.getElementById('ui-shop-address').textContent = data.address || "Partner Shop";
+                    
+                    // Fallback to defaults if rates are missing in Firestore
                     shopRates.bw = Number(data.bwRate) || 2;
                     shopRates.color = Number(data.colorRate) || 10;
                     
@@ -313,9 +322,10 @@
             } 
         };
 
-        // Concurrent Token Generation with Atomic Reset
+        // Concurrent Token Generation with Atomic Reset (Tries both paths)
         async function getNextToken() {
             const today = new Date().toISOString().split('T')[0];
+            // Prefer Rule 1 path for counters
             const counterRef = doc(db, 'artifacts', appId, 'public', 'data', 'counters', `${currentShopId}_${today}`);
             try {
                 let token = 1;
@@ -355,6 +365,7 @@
                     const url = await getDownloadURL(uploadTask.snapshot.ref);
                     const token = await getNextToken();
                     
+                    // SAVE ORDER (Strict Path)
                     await addDoc(collection(db, 'artifacts', appId, 'public', 'data', 'prints'), {
                         shopId: currentShopId, token, fileName: currentFile.name,
                         fileUrl: url, filePath: storagePath,
