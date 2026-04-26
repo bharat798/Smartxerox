@@ -28,16 +28,16 @@
     <header class="bg-white border-b border-slate-200 sticky top-0 z-30 shadow-sm px-6">
         <div class="max-w-7xl mx-auto h-16 flex items-center justify-between">
             <div class="flex items-center gap-2.5">
-                <div class="bg-slate-900 p-2 rounded-xl">
+                <div class="bg-slate-900 p-2 rounded-xl shadow-lg">
                     <i data-lucide="shield-check" class="w-5 h-5 text-white"></i>
                 </div>
                 <h1 class="font-black text-xl text-slate-900 tracking-tight italic">Admin<span class="text-blue-600">Console</span></h1>
             </div>
             <div class="flex items-center gap-4">
                 <div id="admin-status" class="text-[10px] font-black bg-emerald-50 text-emerald-600 px-3 py-1.5 rounded-full border border-emerald-100 uppercase tracking-widest flex items-center gap-1.5">
-                    <span class="w-1.5 h-1.5 bg-emerald-500 rounded-full animate-ping"></span> System Live
+                    <span class="w-1.5 h-1.5 bg-emerald-500 rounded-full animate-ping"></span> System Online
                 </div>
-                <button id="btn-logout-header" class="text-slate-400 hover:text-red-500 transition-colors">
+                <button id="btn-logout-header" class="text-slate-400 hover:text-red-500 transition-all p-2 rounded-lg hover:bg-slate-50">
                     <i data-lucide="log-out" class="w-5 h-5"></i>
                 </button>
             </div>
@@ -47,7 +47,7 @@
     <!-- App State Screen -->
     <div id="loading-state" class="flex-1 flex flex-col items-center justify-center p-6 text-center mt-20">
         <div class="w-12 h-12 border-4 border-blue-100 border-t-blue-600 rounded-full animate-spin mb-4"></div>
-        <h2 class="text-lg font-bold text-slate-800">Loading Management Data...</h2>
+        <h2 class="text-lg font-bold text-slate-800">Synchronizing Management Data...</h2>
     </div>
 
     <!-- Main Content -->
@@ -55,22 +55,24 @@
         
         <!-- Stats Grid -->
         <div class="grid grid-cols-1 md:grid-cols-4 gap-6">
-            <div class="bg-white p-6 rounded-[2rem] border border-slate-200 shadow-sm text-center">
+            <div class="bg-white p-6 rounded-[2.5rem] border border-slate-200 shadow-sm text-center">
                 <p class="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1">Total Shops</p>
-                <h3 class="text-3xl font-black text-slate-900" id="stat-shops">0</h3>
+                <h3 class="text-4xl font-black text-slate-900" id="stat-shops">0</h3>
             </div>
-            <div class="bg-white p-6 rounded-[2rem] border border-slate-200 shadow-sm text-center">
-                <p class="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1">Total Prints</p>
-                <h3 class="text-3xl font-black text-blue-600" id="stat-prints">0</h3>
+            <div class="bg-white p-6 rounded-[2.5rem] border border-slate-200 shadow-sm text-center">
+                <p class="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1">Total Print Jobs</p>
+                <h3 class="text-4xl font-black text-blue-600" id="stat-prints">0</h3>
             </div>
             <div class="bg-gradient-to-br from-blue-600 to-indigo-700 p-6 rounded-[2.5rem] text-white shadow-xl shadow-blue-100 text-center">
-                <p class="text-[10px] font-black text-blue-100 uppercase tracking-widest mb-1">Total Revenue</p>
-                <h3 class="text-3xl font-black">₹<span id="stat-revenue">0</span></h3>
+                <p class="text-[10px] font-black text-blue-100 uppercase tracking-widest mb-1 text-opacity-70">Total Revenue</p>
+                <h3 class="text-4xl font-black italic">₹<span id="stat-revenue">0</span></h3>
             </div>
-            <div class="bg-white p-6 rounded-[2rem] border border-slate-200 shadow-sm flex items-center justify-center">
+            <div class="bg-white p-6 rounded-[2.5rem] border border-slate-200 shadow-sm flex items-center justify-center">
                 <button onclick="window.openAddShop()" class="w-full h-full flex flex-col items-center justify-center gap-2 group transition-all">
-                    <div class="w-10 h-10 bg-blue-50 text-blue-600 rounded-full flex items-center justify-center group-hover:scale-110 transition-transform"><i data-lucide="plus" class="w-6 h-6"></i></div>
-                    <span class="text-xs font-black text-slate-500 uppercase tracking-widest">Register New Shop</span>
+                    <div class="w-12 h-12 bg-blue-50 text-blue-600 rounded-full flex items-center justify-center group-hover:scale-110 transition-transform group-hover:bg-blue-600 group-hover:text-white shadow-inner">
+                        <i data-lucide="plus" class="w-7 h-7"></i>
+                    </div>
+                    <span class="text-xs font-black text-slate-500 uppercase tracking-widest">Register New Partner</span>
                 </button>
             </div>
         </div>
@@ -79,19 +81,20 @@
         <div class="bg-white rounded-[2.5rem] border border-slate-200 shadow-sm overflow-hidden">
             <div class="px-8 py-6 border-b border-slate-100 flex items-center justify-between">
                 <h2 class="font-black text-slate-800 text-sm uppercase tracking-widest">Registered Shop Partners</h2>
+                <div class="bg-slate-50 px-3 py-1.5 rounded-full border border-slate-100 text-[10px] font-bold text-slate-400 uppercase">Live Updates Enabled</div>
             </div>
             <div class="overflow-x-auto">
                 <table class="w-full text-left border-collapse">
                     <thead class="bg-slate-50 text-[10px] font-black uppercase text-slate-400 border-b border-slate-100">
                         <tr>
                             <th class="px-8 py-4">Shop Details</th>
-                            <th class="px-8 py-4">Current Rates (B&W / Color)</th>
+                            <th class="px-8 py-4">Current Rates (Normal / Bulk)</th>
                             <th class="px-8 py-4 text-center">Total Revenue</th>
                             <th class="px-8 py-4 text-right">Actions</th>
                         </tr>
                     </thead>
                     <tbody id="shop-list-body" class="text-sm divide-y divide-slate-50 font-medium">
-                        <!-- Shops dynamically loaded -->
+                        <!-- Dynamic Content -->
                     </tbody>
                 </table>
             </div>
@@ -102,12 +105,11 @@
     <div id="shop-modal" class="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-[100] hidden flex items-center justify-center p-4">
         <div class="bg-white rounded-[3rem] shadow-2xl max-w-lg w-full p-10 modal-animate overflow-y-auto max-h-[90vh]">
             <div class="flex items-center justify-between mb-8">
-                <h3 id="modal-title" class="text-2xl font-black text-slate-800 tracking-tight">Register New Shop</h3>
+                <h3 id="modal-title" class="text-2xl font-black text-slate-800 tracking-tight leading-none">Register New Shop</h3>
                 <button onclick="window.closeShopModal()" class="p-2 bg-slate-50 rounded-xl hover:bg-red-50 hover:text-red-500 transition-all"><i data-lucide="x" class="w-5 h-5"></i></button>
             </div>
             
             <form id="shop-form" class="space-y-6">
-                <!-- Basic Info -->
                 <div class="grid grid-cols-2 gap-4">
                     <div class="col-span-2">
                         <label class="block text-[10px] font-black text-slate-400 uppercase mb-2 tracking-widest">Shop Name</label>
@@ -117,67 +119,69 @@
                         <label class="block text-[10px] font-black text-slate-400 uppercase mb-2 tracking-widest">Owner Name</label>
                         <input type="text" id="m-owner-name" required class="w-full bg-slate-50 border border-slate-200 rounded-2xl px-5 py-4 font-bold outline-none focus:ring-2 focus:ring-blue-500">
                     </div>
-                    <div id="shop-id-container">
-                        <label class="block text-[10px] font-black text-slate-400 uppercase mb-2 tracking-widest">Shop ID (Unique)</label>
+                    <div>
+                        <label class="block text-[10px] font-black text-slate-400 uppercase mb-2 tracking-widest">Unique ID (System)</label>
                         <input type="text" id="m-shop-id" required class="w-full bg-slate-50 border border-slate-200 rounded-2xl px-5 py-4 font-bold outline-none focus:ring-2 focus:ring-blue-500">
                     </div>
                     <div class="col-span-2" id="email-container">
-                        <label class="block text-[10px] font-black text-slate-400 uppercase mb-2 tracking-widest">Shop Login Email</label>
+                        <label class="block text-[10px] font-black text-slate-400 uppercase mb-2 tracking-widest">Login Email Address</label>
                         <input type="email" id="m-shop-email" required class="w-full bg-slate-50 border border-slate-200 rounded-2xl px-5 py-4 font-bold outline-none focus:ring-2 focus:ring-blue-500">
                     </div>
                 </div>
 
-                <!-- Pricing Tiers -->
                 <div class="pt-4 border-t border-slate-100">
-                    <label class="block text-[10px] font-black text-slate-400 uppercase mb-4 tracking-widest">Pricing Tiers</label>
-                    <div class="bg-blue-50 p-4 rounded-2xl flex items-center justify-between mb-6">
-                        <span class="text-xs font-bold text-blue-900">Bulk Tier Threshold (Pages)</span>
-                        <input type="number" id="m-tier-threshold" value="3" class="w-16 bg-white border border-blue-200 rounded-lg px-2 py-1 font-black text-center outline-none">
+                    <label class="block text-[10px] font-black text-slate-400 uppercase mb-4 tracking-widest">Pricing Tiers Configuration</label>
+                    <div class="bg-blue-50 p-5 rounded-[2rem] border border-blue-100 mb-6 flex items-center justify-between">
+                        <div class="flex flex-col">
+                            <span class="text-xs font-bold text-blue-900">Bulk Rate Threshold</span>
+                            <span class="text-[9px] text-blue-400 font-bold uppercase tracking-tighter italic">Applied after how many pages?</span>
+                        </div>
+                        <input type="number" id="m-tier-threshold" value="3" class="w-20 bg-white border border-blue-200 rounded-xl px-3 py-2 font-black text-center outline-none">
                     </div>
                     
                     <div class="grid grid-cols-2 gap-6">
                         <div class="space-y-4">
-                            <h4 class="text-[10px] font-black text-slate-800 uppercase tracking-widest">Black & White</h4>
-                            <input type="number" step="0.01" id="m-bw-rate" placeholder="Normal ₹" class="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-3 font-bold">
-                            <input type="number" step="0.01" id="m-bw-bulk" placeholder="Bulk ₹" class="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-3 font-bold">
+                            <h4 class="text-[10px] font-black text-slate-800 uppercase tracking-widest text-center">Black & White</h4>
+                            <input type="number" step="0.01" id="m-bw-rate" placeholder="Normal Rate ₹" class="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-3 font-bold text-center">
+                            <input type="number" step="0.01" id="m-bw-bulk" placeholder="Bulk Rate ₹" class="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-3 font-bold text-center">
                         </div>
                         <div class="space-y-4">
-                            <h4 class="text-[10px] font-black text-slate-800 uppercase tracking-widest">Full Color</h4>
-                            <input type="number" step="0.01" id="m-color-rate" placeholder="Normal ₹" class="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-3 font-bold">
-                            <input type="number" step="0.01" id="m-color-bulk" placeholder="Bulk ₹" class="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-3 font-bold">
+                            <h4 class="text-[10px] font-black text-slate-800 uppercase tracking-widest text-center">Full Color</h4>
+                            <input type="number" step="0.01" id="m-color-rate" placeholder="Normal Rate ₹" class="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-3 font-bold text-center">
+                            <input type="number" step="0.01" id="m-color-bulk" placeholder="Bulk Rate ₹" class="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-3 font-bold text-center">
                         </div>
                     </div>
                 </div>
 
-                <button type="submit" id="btn-save-shop" class="w-full bg-blue-600 text-white font-black py-5 rounded-[2rem] shadow-xl active:scale-95 transition-all text-lg">Save Shop Configuration</button>
+                <button type="submit" id="btn-save-shop" class="w-full bg-blue-600 text-white font-black py-5 rounded-[2rem] shadow-xl shadow-blue-100 active:scale-95 transition-all text-lg">Confirm Registration</button>
             </form>
         </div>
     </div>
 
-    <!-- QR/Credentials Modal -->
+    <!-- QR CODE VIEW MODAL -->
     <div id="cred-modal" class="fixed inset-0 bg-slate-900/80 backdrop-blur-sm z-[110] hidden flex items-center justify-center p-4">
-        <div class="bg-white rounded-[3rem] shadow-2xl max-w-sm w-full p-8 text-center modal-animate">
-            <div class="w-20 h-20 bg-blue-50 text-blue-600 rounded-3xl flex items-center justify-center mx-auto mb-6"><i data-lucide="qr-code" class="w-10 h-10"></i></div>
-            <h3 class="text-xl font-black text-slate-800 mb-2">Shop Registration Successful</h3>
-            <p class="text-sm text-slate-500 mb-6">Login credentials are generated below.</p>
+        <div class="bg-white rounded-[3rem] shadow-2xl max-w-sm w-full p-10 text-center modal-animate border border-white/20">
+            <div class="w-16 h-16 bg-blue-50 text-blue-600 rounded-3xl flex items-center justify-center mx-auto mb-6"><i data-lucide="qr-code" class="w-8 h-8"></i></div>
+            <h3 class="text-2xl font-black text-slate-800 mb-2 leading-none" id="qr-display-name">Shop QR Code</h3>
+            <p class="text-[11px] font-bold text-slate-400 mb-8 uppercase tracking-widest">Customer Access Link</p>
             
-            <div id="qr-container" class="mx-auto mb-6 bg-white p-2 border-2 border-slate-100 rounded-2xl flex justify-center items-center" style="width: 180px; height: 180px;"></div>
+            <div id="qr-container" class="mx-auto mb-8 bg-white p-4 border-4 border-slate-50 rounded-[2.5rem] flex justify-center items-center shadow-inner" style="width: 210px; height: 210px;"></div>
             
-            <div class="bg-slate-50 p-4 rounded-2xl text-left text-xs font-mono mb-6 space-y-2">
+            <div id="cred-info" class="hidden bg-slate-50 p-4 rounded-2xl text-left text-xs font-mono mb-6 space-y-2 border border-slate-100">
                 <div><span class="text-slate-400">Email:</span> <span id="display-email" class="text-blue-600 font-bold"></span></div>
                 <div><span class="text-slate-400">Password:</span> <span id="display-pass" class="text-slate-800 font-bold"></span></div>
             </div>
-            <button onclick="document.getElementById('cred-modal').classList.add('hidden')" class="w-full bg-slate-900 text-white font-bold py-4 rounded-2xl">Close</button>
+
+            <button onclick="document.getElementById('cred-modal').classList.add('hidden')" class="w-full bg-slate-950 text-white font-black py-4 rounded-3xl active:scale-95 transition-all">Close Console</button>
         </div>
     </div>
 
     <!-- TOAST -->
-    <div id="toast" class="fixed top-8 left-1/2 -translate-x-1/2 z-[120] flex items-center gap-4 bg-slate-900 text-white px-8 py-5 rounded-[2rem] shadow-2xl text-[11px] font-black uppercase tracking-widest transition-all duration-300 opacity-0 pointer-events-none -translate-y-4">
+    <div id="toast" class="fixed top-8 left-1/2 -translate-x-1/2 z-[120] flex items-center gap-4 bg-slate-900 text-white px-8 py-5 rounded-[2.5rem] shadow-2xl text-[11px] font-black uppercase tracking-widest transition-all duration-300 opacity-0 pointer-events-none -translate-y-4">
         <i data-lucide="info" class="w-5 h-5 text-blue-400"></i><span id="toast-msg"></span>
     </div>
 
     <script type="module">
-        // 🟢 FIXED: Import from firebase-init.js to avoid config errors 🟢
         import { auth, db, secondaryAuth } from './js/firebase-init.js';
         import { signInAnonymously, onAuthStateChanged, signOut, createUserWithEmailAndPassword } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-auth.js";
         import { doc, getDoc, setDoc, collection, onSnapshot, updateDoc, deleteDoc } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js";
@@ -188,24 +192,25 @@
         let editMode = false;
         let activeShopId = null;
 
-        // 1. Auth Initializer
         onAuthStateChanged(auth, async (user) => {
             if (!user) {
-                // If not logged in, try anonymous (mostly for local development)
-                await signInAnonymously(auth).catch(() => {
-                    window.location.href = "index.html";
-                });
+                await signInAnonymously(auth).catch(() => { window.location.href = "index.html"; });
                 return;
             }
             bootstrapAdmin();
         });
 
         async function bootstrapAdmin() {
-            // Setup Live Listeners
+            // Listen to rule 1 path
             onSnapshot(collection(db, 'artifacts', appId, 'public', 'data', 'shops'), (snap) => {
-                allShops = snap.docs.map(d => ({ ...d.data(), id: d.id }));
-                renderShops();
-                document.getElementById('stat-shops').textContent = allShops.length;
+                const listA = snap.docs.map(d => ({ ...d.data(), id: d.id }));
+                syncShops(listA);
+            });
+
+            // Fallback for root collection (migration/safety)
+            onSnapshot(collection(db, 'shops'), (snap) => {
+                const listB = snap.docs.map(d => ({ ...d.data(), id: d.id }));
+                syncShops(listB);
             });
 
             onSnapshot(collection(db, 'artifacts', appId, 'public', 'data', 'shop_analytics'), (snap) => {
@@ -217,6 +222,14 @@
             document.getElementById('loading-state').classList.add('hidden');
             document.getElementById('app-main').classList.remove('hidden');
             lucide.createIcons();
+        }
+
+        function syncShops(newList) {
+            newList.forEach(item => {
+                if(!allShops.find(x => x.id === item.id)) allShops.push(item);
+            });
+            document.getElementById('stat-shops').textContent = allShops.length;
+            renderShops();
         }
 
         function calculateGlobalStats() {
@@ -239,28 +252,32 @@
                     .reduce((sum, current) => sum + (current.revenue || 0), 0);
 
                 return `
-                    <tr class="hover:bg-slate-50 transition-colors">
+                    <tr class="hover:bg-slate-50 transition-colors group">
                         <td class="px-8 py-5">
-                            <div class="font-black text-slate-900">${s.shopName}</div>
-                            <div class="text-[10px] text-slate-400 uppercase tracking-widest font-bold mt-1">ID: ${s.id} • Owner: ${s.ownerName}</div>
+                            <div class="font-black text-slate-900 leading-tight">${s.shopName}</div>
+                            <div class="text-[10px] text-slate-400 uppercase tracking-widest font-bold mt-1 italic">ID: ${s.id} • ${s.ownerName}</div>
                         </td>
                         <td class="px-8 py-5">
                             <div class="flex items-center gap-3">
-                                <div class="bg-slate-100 px-3 py-1 rounded-lg border border-slate-200">
-                                    <span class="text-[8px] font-black text-slate-400 block uppercase mb-0.5">B&W</span>
-                                    <span class="text-xs font-bold text-slate-700">₹${s.bwRate} / ₹${s.bwRateBulk}</span>
+                                <div class="bg-slate-100 px-3 py-1.5 rounded-xl border border-slate-200">
+                                    <span class="text-[8px] font-black text-slate-400 block uppercase mb-0.5">B&W Rate</span>
+                                    <span class="text-xs font-black text-slate-700">₹${s.bwRate || 2} / ₹${s.bwRateBulk || 1.5}</span>
                                 </div>
-                                <div class="bg-purple-50 px-3 py-1 rounded-lg border border-purple-100">
-                                    <span class="text-[8px] font-black text-purple-400 block uppercase mb-0.5">Color</span>
-                                    <span class="text-xs font-bold text-purple-700">₹${s.colorRate} / ₹${s.colorRateBulk}</span>
+                                <div class="bg-purple-50 px-3 py-1.5 rounded-xl border border-purple-100">
+                                    <span class="text-[8px] font-black text-purple-400 block uppercase mb-0.5">Color Rate</span>
+                                    <span class="text-xs font-black text-purple-700">₹${s.colorRate || 10} / ₹${s.colorRateBulk || 8}</span>
+                                </div>
+                                <div class="bg-blue-50 px-2 py-1 rounded-lg border border-blue-100 text-[8px] font-black text-blue-600">
+                                    T: ${s.tierThreshold || 3}+
                                 </div>
                             </div>
                         </td>
                         <td class="px-8 py-5 text-center">
-                            <span class="text-emerald-600 font-black text-lg">₹${shopRevenue.toFixed(1)}</span>
+                            <span class="text-emerald-600 font-black text-lg italic">₹${shopRevenue.toFixed(1)}</span>
                         </td>
                         <td class="px-8 py-5 text-right space-x-2">
-                            <button onclick="window.editShop('${s.id}')" class="p-2.5 bg-slate-100 text-slate-600 rounded-xl hover:bg-slate-900 hover:text-white transition-all"><i data-lucide="edit-3" class="w-4 h-4"></i></button>
+                            <button onclick="window.viewShopQR('${s.id}')" class="p-2.5 bg-blue-50 text-blue-600 rounded-xl hover:bg-blue-600 hover:text-white transition-all shadow-sm" title="Show QR Code"><i data-lucide="qr-code" class="w-4 h-4"></i></button>
+                            <button onclick="window.editShop('${s.id}')" class="p-2.5 bg-slate-100 text-slate-600 rounded-xl hover:bg-slate-900 hover:text-white transition-all" title="Edit Configuration"><i data-lucide="settings-2" class="w-4 h-4"></i></button>
                             <button onclick="window.deleteShop('${s.id}')" class="p-2.5 text-slate-300 hover:text-red-500 transition-all"><i data-lucide="trash-2" class="w-4 h-4"></i></button>
                         </td>
                     </tr>
@@ -269,7 +286,23 @@
             lucide.createIcons();
         }
 
-        // 3. Actions
+        window.viewShopQR = (id) => {
+            const s = allShops.find(x => x.id === id);
+            if(!s) return;
+            
+            document.getElementById('qr-display-name').textContent = s.shopName;
+            document.getElementById('cred-info').classList.add('hidden');
+            
+            const qrContainer = document.getElementById('qr-container');
+            qrContainer.innerHTML = "";
+            const currentUrl = window.location.href;
+            const baseUrl = currentUrl.substring(0, currentUrl.lastIndexOf('/')) + "/customer.html";
+            const shopUrl = `${baseUrl}?shop=${id}`;
+            
+            new QRCode(qrContainer, { text: shopUrl, width: 180, height: 180 });
+            document.getElementById('cred-modal').classList.remove('hidden');
+        };
+
         window.openAddShop = () => {
             editMode = false; activeShopId = null;
             document.getElementById('modal-title').textContent = "Register New Shop";
@@ -302,7 +335,7 @@
         document.getElementById('shop-form').onsubmit = async (e) => {
             e.preventDefault();
             const btn = document.getElementById('btn-save-shop');
-            btn.innerHTML = "Processing..."; btn.disabled = true;
+            btn.innerHTML = "Processing Data..."; btn.disabled = true;
 
             const shopId = document.getElementById('m-shop-id').value.trim();
             const email = document.getElementById('m-shop-email').value.trim();
@@ -321,38 +354,41 @@
 
             try {
                 if (!editMode) {
-                    // Create New Auth Account using secondary auth (don't log out admin)
                     const cred = await createUserWithEmailAndPassword(secondaryAuth, email, pass);
                     await signOut(secondaryAuth);
-                    
                     await setDoc(doc(db, 'users', cred.user.uid), { email, role: 'shop', shopId, isFirstLogin: true });
                     shopData.uid = cred.user.uid;
                     shopData.email = email;
                     shopData.createdAt = Date.now();
                     
-                    // Show Credentials
+                    document.getElementById('qr-display-name').textContent = "New Shop Access";
                     document.getElementById('display-email').textContent = email;
                     document.getElementById('display-pass').textContent = pass;
-                    const customerUrl = window.location.origin + window.location.pathname.replace('admin.html', 'customer.html') + `?shop=${shopId}`;
-                    new QRCode(document.getElementById('qr-container'), { text: customerUrl, width: 180, height: 180 });
+                    document.getElementById('cred-info').classList.remove('hidden');
+                    
+                    const qrContainer = document.getElementById('qr-container');
+                    qrContainer.innerHTML = "";
+                    const currentUrl = window.location.href;
+                    const baseUrl = currentUrl.substring(0, currentUrl.lastIndexOf('/')) + "/customer.html";
+                    new QRCode(qrContainer, { text: `${baseUrl}?shop=${shopId}`, width: 180, height: 180 });
                     document.getElementById('cred-modal').classList.remove('hidden');
                 }
 
                 await setDoc(doc(db, 'artifacts', appId, 'public', 'data', 'shops', shopId), shopData, { merge: true });
-                showToast(editMode ? "Shop updated!" : "Shop registered!", "success");
+                showToast(editMode ? "Config updated!" : "Shop onboarded!", "success");
                 window.closeShopModal();
             } catch (err) {
-                console.error(err);
-                showToast("Action failed: " + err.message, "error");
+                showToast("Operation failed.", "error");
             } finally {
-                btn.innerHTML = "Save Shop Configuration"; btn.disabled = false;
+                btn.innerHTML = "Confirm Registration"; btn.disabled = false;
             }
         };
 
         window.deleteShop = async (id) => {
-            if(confirm("Are you sure? This will remove shop access.")) {
+            if(confirm("Confirm Deletion? Shop will lose dashboard access.")) {
                 await deleteDoc(doc(db, 'artifacts', appId, 'public', 'data', 'shops', id));
-                showToast("Shop deleted.");
+                await deleteDoc(doc(db, 'shops', id)).catch(() => {});
+                showToast("Shop removed.");
             }
         };
 
