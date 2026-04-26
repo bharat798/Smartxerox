@@ -8,6 +8,8 @@
     <script src="https://cdn.tailwindcss.com"></script>
     <!-- Lucide Icons -->
     <script src="https://unpkg.com/lucide@latest"></script>
+    <!-- PDF.js for Real Page Counting -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.4.120/pdf.min.js"></script>
     <style>
         @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap');
         body { font-family: 'Inter', sans-serif; background-color: #f1f5f9; scroll-behavior: smooth; }
@@ -26,13 +28,13 @@
         /* Drag & Drop State */
         .drag-active { border-color: #3b82f6 !important; background-color: #eff6ff !important; }
         
-        /* Glassmorphism Summary Bar */
+        /* Summary Bar Glass Effect */
         .summary-glass { background: rgba(15, 23, 42, 0.95); backdrop-filter: blur(10px); }
     </style>
 </head>
 <body class="text-slate-800 antialiased min-h-screen flex flex-col pb-32">
 
-    <!-- Professional Header -->
+    <!-- Header -->
     <header class="bg-white border-b border-slate-200 sticky top-0 z-30 shadow-sm px-4">
         <div class="max-w-5xl mx-auto h-16 flex items-center justify-between">
             <div class="flex items-center gap-2.5">
@@ -67,7 +69,7 @@
     </div>
 
     <!-- Main Application UI -->
-    <main id="app-main" class="hidden flex-1 max-w-4xl mx-auto w-full p-4 sm:p-6 lg:py-10 space-y-8">
+    <main id="app-main" class="hidden flex-1 max-w-4xl mx-auto w-full p-4 sm:p-6 lg:py-10 space-y-6">
         
         <!-- Shop Header Display -->
         <div class="bg-white rounded-3xl p-5 border border-slate-200 shadow-sm flex items-center gap-4">
@@ -82,28 +84,20 @@
         </div>
 
         <!-- Multi-File Dropzone Area -->
-        <div id="dropzone" class="bg-white rounded-[2.5rem] border-4 border-dashed border-slate-200 p-10 sm:p-16 text-center relative cursor-pointer hover:border-blue-400 hover:bg-blue-50/20 transition-all group shadow-sm">
+        <div id="dropzone" class="bg-white rounded-[2.5rem] border-4 border-dashed border-slate-200 p-10 sm:p-16 text-center relative cursor-pointer hover:border-blue-400 hover:bg-blue-50/30 transition-all group shadow-sm">
             <input type="file" id="file-input" multiple class="absolute inset-0 opacity-0 cursor-pointer z-10" accept=".pdf,.doc,.docx,.jpg,.jpeg,.png">
             <div class="w-24 h-24 bg-blue-50 text-blue-600 rounded-[2rem] flex items-center justify-center mx-auto mb-6 group-hover:scale-110 group-hover:rotate-3 transition-transform shadow-inner">
                 <i data-lucide="cloud-upload" class="w-12 h-12"></i>
             </div>
             <h3 class="font-black text-2xl text-slate-800">Select Documents</h3>
-            <p class="text-sm text-slate-400 mt-2 font-medium max-w-xs mx-auto">You can select multiple PDF files or images at once.</p>
-            <div class="mt-6 flex flex-wrap justify-center gap-2">
-                <span class="bg-slate-100 text-slate-500 text-[10px] font-bold px-3 py-1 rounded-full border border-slate-200">PDF</span>
-                <span class="bg-slate-100 text-slate-500 text-[10px] font-bold px-3 py-1 rounded-full border border-slate-200">Images</span>
-                <span class="bg-slate-100 text-slate-500 text-[10px] font-bold px-3 py-1 rounded-full border border-slate-200">Word</span>
-            </div>
+            <p class="text-sm text-slate-400 mt-2 font-medium max-w-xs mx-auto">Saare documents ek saath select karein aur upload karein.</p>
         </div>
 
         <!-- File Cards List -->
-        <div id="file-list" class="space-y-4">
-            <!-- Items will be injected by JavaScript -->
-        </div>
+        <div id="file-list" class="space-y-4"></div>
 
-        <!-- Special Instructions Box -->
+        <!-- Instructions Box -->
         <div id="instructions-box" class="hidden bg-white rounded-3xl border border-slate-200 p-6 shadow-sm overflow-hidden relative">
-            <div class="absolute right-0 top-0 w-24 h-24 bg-slate-50 rounded-full -mr-12 -mt-12"></div>
             <label class="block text-[10px] font-black text-slate-400 uppercase tracking-[0.2em] mb-3 relative z-10">Special Instructions (Optional)</label>
             <textarea id="order-notes" placeholder="e.g. Please staple all files together, or specific page ranges..." class="w-full bg-slate-50 border border-slate-200 rounded-2xl p-5 text-sm outline-none focus:ring-2 focus:ring-blue-500 transition-all min-h-[100px] relative z-10"></textarea>
         </div>
@@ -126,9 +120,6 @@
                 </button>
             </div>
         </div>
-
-        <!-- Spacer for summary bar -->
-        <div class="h-10"></div>
     </main>
 
     <!-- SUCCESS MODAL -->
@@ -138,54 +129,43 @@
                 <i data-lucide="check-circle-2" class="w-14 h-14"></i>
             </div>
             <h2 class="text-3xl font-black text-slate-900 mb-2 leading-tight">Order Success!</h2>
-            <p class="text-slate-500 text-sm mb-10 leading-relaxed font-medium">Documents are uploaded. Give your token number at the counter for printing.</p>
-            
-            <div class="bg-slate-50 border-2 border-slate-100 rounded-[2.5rem] p-10 mb-10 shadow-inner relative overflow-hidden group">
-                <div class="absolute -right-6 -bottom-6 opacity-[0.03] group-hover:scale-110 transition-transform"><i data-lucide="hash" class="w-40 h-40 text-slate-900"></i></div>
+            <p class="text-slate-500 text-sm mb-10 leading-relaxed font-medium">Counter par apna token number dikhayein aur print le lijiye.</p>
+            <div class="bg-slate-50 border-2 border-slate-100 rounded-[2.5rem] p-10 mb-10 shadow-inner relative overflow-hidden">
                 <p class="text-[11px] font-black text-slate-400 uppercase tracking-[0.2em] mb-2 relative z-10">Your Unique Token</p>
                 <p class="text-7xl font-black text-blue-600 tracking-tighter relative z-10" id="final-token">#0</p>
             </div>
-            
             <button onclick="location.reload()" class="w-full bg-slate-900 hover:bg-slate-800 text-white font-black py-5 rounded-3xl shadow-xl active:scale-95 transition-all text-lg">Send Another Order</button>
         </div>
     </div>
 
     <!-- CUSTOM NOTIFICATION POPUP -->
     <div id="custom-popup" class="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-[100] hidden flex items-center justify-center p-4 transition-opacity duration-200">
-        <div class="bg-white rounded-[2.5rem] shadow-2xl max-w-sm w-full p-10 modal-animate text-center border border-white/20">
-            <div id="popup-icon-container" class="mx-auto mb-6 transition-transform hover:scale-110 duration-500"></div>
+        <div class="bg-white rounded-[2.5rem] shadow-2xl max-w-sm w-full p-10 modal-animate text-center">
+            <div id="popup-icon-container" class="mx-auto mb-6"></div>
             <h3 id="popup-title" class="text-xl font-black text-slate-800 mb-2"></h3>
             <p id="popup-msg" class="text-sm text-slate-500 mb-10 leading-relaxed font-medium"></p>
-            <button onclick="window.closePopup()" class="w-full bg-slate-900 text-white font-black py-4 rounded-2xl active:scale-95 transition-all shadow-lg">Okay, Got it</button>
+            <button onclick="window.closePopup()" class="w-full bg-slate-900 text-white font-black py-4 rounded-2xl active:scale-95 transition-all shadow-lg">Okay</button>
         </div>
     </div>
 
-    <!-- SCRIPTS: FIREBASE + APP LOGIC -->
     <script type="module">
-        // 🟢 FIX: Import from existing init file to prevent config errors 🟢
         import { auth, db, storage } from './js/firebase-init.js';
         import { signInAnonymously, onAuthStateChanged, signInWithCustomToken } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-auth.js";
         import { doc, getDoc, collection, addDoc, runTransaction, serverTimestamp } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js";
         import { ref, uploadBytesResumable, getDownloadURL } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-storage.js";
 
-        // APP STATE
+        // Global State
         const appId = typeof __app_id !== 'undefined' ? __app_id : 'default-app-id';
         let user = null;
         let currentShopId = new URLSearchParams(window.location.search).get('shop');
-        
-        let shopRates = { 
-            bwRate: 2.0, bwRateBulk: 1.5,
-            colorRate: 10.0, colorRateBulk: 8.0,
-            tierThreshold: 3 
-        };
-
+        let shopRates = { bwRate: 2, bwRateBulk: 1.5, colorRate: 10, colorRateBulk: 8, tierThreshold: 3 };
         let globalSettings = { maxFileSize: 25, autoDeleteHours: 3 };
         let selectedFiles = [];
 
-        // ==========================================
-        // 1. AUTHENTICATION & SHOP INITIALIZATION
-        // ==========================================
-        
+        // PDF.js worker setup
+        pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.4.120/pdf.worker.min.js';
+
+        // 🟢 AUTHENTICATION 🟢
         onAuthStateChanged(auth, async (u) => {
             if (!u) {
                 if (typeof __initial_auth_token !== 'undefined' && __initial_auth_token) {
@@ -200,51 +180,40 @@
         });
 
         async function bootstrapApp() {
-            if (!currentShopId) {
-                toggleState('invalid');
-                return;
-            }
+            if (!currentShopId) { toggleState('invalid'); return; }
 
             try {
-                // Global rules load karo
                 const configSnap = await getDoc(doc(db, 'artifacts', appId, 'public', 'data', 'settings', 'global'));
                 if(configSnap.exists()) globalSettings = { ...globalSettings, ...configSnap.data() };
 
-                // Shop context load karo
-                const paths = [
+                const shopPaths = [
                     doc(db, 'artifacts', appId, 'public', 'data', 'shops', currentShopId),
                     doc(db, 'shops', currentShopId)
                 ];
 
-                let shopDocData = null;
-                for(let pathRef of paths) {
-                    const snap = await getDoc(pathRef);
-                    if(snap.exists()) {
-                        shopDocData = snap.data();
-                        break;
-                    }
+                let shopData = null;
+                for(let path of shopPaths) {
+                    const snap = await getDoc(path);
+                    if(snap.exists()) { shopData = snap.data(); break; }
                 }
 
-                if (shopDocData) {
-                    document.getElementById('ui-shop-name').textContent = shopDocData.shopName;
-                    document.getElementById('display-shop-name').textContent = shopDocData.shopName;
-                    document.getElementById('display-shop-address').textContent = shopDocData.address || "Authorized Print Partner";
+                if (shopData) {
+                    document.getElementById('ui-shop-name').textContent = shopData.shopName;
+                    document.getElementById('display-shop-name').textContent = shopData.shopName;
+                    document.getElementById('display-shop-address').textContent = shopData.address || "Authorized Partner";
                     
                     shopRates = {
-                        bwRate: parseFloat(shopDocData.bwRate) || 2.0,
-                        bwRateBulk: parseFloat(shopDocData.bwRateBulk) || 1.5,
-                        colorRate: parseFloat(shopDocData.colorRate) || 10.0,
-                        colorRateBulk: parseFloat(shopDocData.colorRateBulk) || 8.0,
-                        tierThreshold: parseInt(shopDocData.tierThreshold) || 3
+                        bwRate: parseFloat(shopData.bwRate) || 2.0,
+                        bwRateBulk: parseFloat(shopData.bwRateBulk) || 1.5,
+                        colorRate: parseFloat(shopData.colorRate) || 10.0,
+                        colorRateBulk: parseFloat(shopData.colorRateBulk) || 8.0,
+                        tierThreshold: parseInt(shopData.tierThreshold) || 3
                     };
-
                     toggleState('main');
-                } else {
-                    toggleState('invalid');
-                }
+                } else { toggleState('invalid'); }
             } catch (e) {
-                console.error("Bootstrap Error:", e);
-                window.showPopup("System Error", "Unable to load shop data. Check connection.", "error");
+                console.error(e);
+                window.showPopup("System Error", "Connection failed.", "error");
             }
         }
 
@@ -252,25 +221,28 @@
             document.getElementById('loading-state').classList.add('hidden');
             document.getElementById('invalid-shop-state').classList.add('hidden');
             document.getElementById('app-main').classList.add('hidden');
-
-            if(state === 'main') {
-                document.getElementById('app-main').classList.remove('hidden');
-                document.getElementById('ui-shop-name').classList.remove('hidden');
-            } else if(state === 'invalid') {
-                document.getElementById('invalid-shop-state').classList.remove('hidden');
-            }
+            if(state === 'main') document.getElementById('app-main').classList.remove('hidden');
+            else if(state === 'invalid') document.getElementById('invalid-shop-state').classList.remove('hidden');
             lucide.createIcons();
         }
 
-        // ==========================================
-        // 2. FILE SELECTION & PRICING ENGINE
-        // ==========================================
+        // 🟢 REAL PDF PAGE COUNTER 🟢
+        async function countPdfPages(file) {
+            try {
+                const arrayBuffer = await file.arrayBuffer();
+                const pdf = await pdfjsLib.getDocument({ data: arrayBuffer }).promise;
+                return pdf.numPages;
+            } catch (e) {
+                console.error("PDF Page counting error:", e);
+                return 1; // Fallback
+            }
+        }
 
+        // 🟢 FILE HANDLING 🟢
         const fileInput = document.getElementById('file-input');
         const dropzone = document.getElementById('dropzone');
 
         fileInput.onchange = e => handleFiles(Array.from(e.target.files));
-
         ['dragenter', 'dragover'].forEach(e => dropzone.addEventListener(e, (ev) => {
             ev.preventDefault(); dropzone.classList.add('drag-active');
         }));
@@ -282,34 +254,36 @@
             handleFiles(Array.from(e.dataTransfer.files));
         });
 
-        function handleFiles(files) {
-            files.forEach(file => {
+        async function handleFiles(files) {
+            for (const file of files) {
                 if (file.size > globalSettings.maxFileSize * 1024 * 1024) {
-                    window.showPopup("File Limit Exceeded", `${file.name} is too large. Max ${globalSettings.maxFileSize}MB allowed.`, "error");
-                    return;
+                    window.showPopup("File too big", `${file.name} is too large.`, "error");
+                    continue;
                 }
 
-                const isPdf = file.name.toLowerCase().endsWith('.pdf');
-                const pages = isPdf ? Math.floor(Math.random() * 12) + 1 : 1;
+                let pages = 1;
+                if (file.name.toLowerCase().endsWith('.pdf')) {
+                    pages = await countPdfPages(file); // 🟢 Real counting 🟢
+                }
 
-                const fileObj = {
+                selectedFiles.push({
                     id: Math.random().toString(36).substr(2, 9),
                     fileData: file,
                     fileName: file.name,
                     pages: pages,
                     settings: { colorMode: 'bw' },
                     price: 0
-                };
-                selectedFiles.push(fileObj);
-            });
+                });
+            }
             renderFileList();
             fileInput.value = '';
         }
 
         function calculatePrice(pages, mode) {
             const threshold = shopRates.tierThreshold;
-            const isStandard = pages <= threshold;
-            let rate = mode === 'bw' ? (isStandard ? shopRates.bwRate : shopRates.bwRateBulk) : (isStandard ? shopRates.colorRate : shopRates.colorRateBulk);
+            const rate = mode === 'bw' 
+                ? (pages <= threshold ? shopRates.bwRate : shopRates.bwRateBulk)
+                : (pages <= threshold ? shopRates.colorRate : shopRates.colorRateBulk);
             return pages * rate;
         }
 
@@ -323,22 +297,21 @@
                 totalOrderPrice += f.price;
 
                 const card = document.createElement('div');
-                card.className = "file-card bg-white rounded-3xl p-5 border border-slate-200 shadow-sm flex flex-col md:flex-row md:items-center gap-5 relative overflow-hidden group hover:border-blue-200 transition-colors";
+                card.className = "file-card bg-white rounded-3xl p-5 border border-slate-200 shadow-sm flex flex-col md:flex-row md:items-center gap-5";
                 card.innerHTML = `
                     <div class="flex-1 min-w-0">
-                        <div class="flex items-center gap-2.5 mb-1.5">
-                            <div class="bg-blue-50 p-2 rounded-xl border border-blue-100"><i data-lucide="file-text" class="w-5 h-5 text-blue-500"></i></div>
+                        <div class="flex items-center gap-2 mb-1">
+                            <div class="bg-blue-50 p-2 rounded-xl"><i data-lucide="file-text" class="w-5 h-5 text-blue-500"></i></div>
                             <h4 class="font-black text-slate-800 truncate text-base">${f.fileName}</h4>
                         </div>
                         <div class="flex items-center gap-3">
-                             <span class="text-[10px] font-black text-slate-400 uppercase tracking-widest bg-slate-50 px-2 py-0.5 rounded-md border border-slate-100">${f.pages} Pages</span>
+                             <span class="text-[10px] font-black text-slate-400 uppercase tracking-widest bg-slate-50 px-2 py-0.5 rounded border border-slate-100">${f.pages} Pages</span>
                              <div class="h-1 w-1 rounded-full bg-slate-300"></div>
                              <p class="text-sm font-black text-emerald-600">₹${f.price.toFixed(2)}</p>
-                             ${f.pages > shopRates.tierThreshold ? '<span class="text-[8px] font-bold text-amber-500 uppercase bg-amber-50 px-1.5 rounded border border-amber-100">Bulk Rate Applied</span>' : ''}
                         </div>
                     </div>
                     <div class="flex items-center gap-2 shrink-0">
-                        <div class="flex bg-slate-100 p-1.5 rounded-[1.25rem] border border-slate-200 shadow-inner">
+                        <div class="flex bg-slate-100 p-1.5 rounded-2xl border border-slate-200 shadow-inner">
                             <button onclick="window.updateFileMode('${f.id}', 'bw')" class="px-5 py-2.5 rounded-xl text-[10px] font-black uppercase transition-all ${f.settings.colorMode === 'bw' ? 'bg-white shadow-sm text-slate-900' : 'text-slate-400 hover:text-slate-600'}">B&W</button>
                             <button onclick="window.updateFileMode('${f.id}', 'color')" class="px-5 py-2.5 rounded-xl text-[10px] font-black uppercase transition-all ${f.settings.colorMode === 'color' ? 'bg-purple-600 text-white shadow-lg shadow-purple-200' : 'text-slate-400 hover:text-slate-600'}">Color</button>
                         </div>
@@ -348,9 +321,8 @@
                 container.appendChild(card);
             });
 
-            const hasFiles = selectedFiles.length > 0;
-            document.getElementById('summary-bar').classList.toggle('hidden', !hasFiles);
-            document.getElementById('instructions-box').classList.toggle('hidden', !hasFiles);
+            document.getElementById('summary-bar').classList.toggle('hidden', selectedFiles.length === 0);
+            document.getElementById('instructions-box').classList.toggle('hidden', selectedFiles.length === 0);
             document.getElementById('order-total').textContent = totalOrderPrice.toFixed(2);
             lucide.createIcons();
         }
@@ -365,10 +337,7 @@
             renderFileList();
         };
 
-        // ==========================================
-        // 3. TRANSACTIONAL TOKEN GENERATION
-        // ==========================================
-        
+        // 🟢 ATOMIC TOKEN GENERATOR 🟢
         async function getNextToken() {
             const today = new Date().toISOString().split('T')[0];
             const counterRef = doc(db, 'artifacts', appId, 'public', 'data', 'counters', `${currentShopId}_${today}`);
@@ -384,42 +353,39 @@
                     }
                 });
                 return tokenNum;
-            } catch (e) {
-                return Math.floor(Math.random() * 900) + 100;
-            }
+            } catch (e) { return Math.floor(Math.random() * 900) + 100; }
         }
 
-        // ==========================================
-        // 4. ORDER SUBMISSION
-        // ==========================================
-
+        // 🟢 FAST PARALLEL SUBMISSION 🟢
         const btnSubmit = document.getElementById('btn-submit');
         btnSubmit.onclick = async () => {
             if (!user || selectedFiles.length === 0) return;
 
-            btnSubmit.innerHTML = `<i data-lucide="loader-2" class="w-5 h-5 animate-spin"></i> Processing...`; 
+            btnSubmit.innerHTML = `<i data-lucide="loader-2" class="w-5 h-5 animate-spin"></i> Speeding up...`; 
             btnSubmit.disabled = true;
             lucide.createIcons();
 
             try {
                 const tokenNum = await getNextToken();
-                const uploadedFilesData = [];
 
-                for (let fObj of selectedFiles) {
+                // 🟢 UPLOAD IN PARALLEL FOR SPEED 🟢
+                const uploadPromises = selectedFiles.map(async (fObj) => {
                     const uniqueSuffix = Date.now() + '-' + Math.round(Math.random() * 1E9);
                     const cleanName = fObj.fileName.replace(/[^a-z0-9.]/gi, '_').toLowerCase();
                     const storagePath = `uploads/${currentShopId}/${uniqueSuffix}_${cleanName}`;
                     const storageRef = ref(storage, storagePath);
 
-                    const uploadTask = await uploadBytesResumable(storageRef, fObj.fileData);
-                    const downloadUrl = await getDownloadURL(uploadTask.ref);
+                    const snapshot = await uploadBytesResumable(storageRef, fObj.fileData);
+                    const downloadUrl = await getDownloadURL(snapshot.ref);
                     
-                    uploadedFilesData.push({
+                    return {
                         fileName: fObj.fileName, fileUrl: downloadUrl,
                         filePath: storagePath, pages: fObj.pages,
                         price: fObj.price, settings: fObj.settings
-                    });
-                }
+                    };
+                });
+
+                const uploadedFilesData = await Promise.all(uploadPromises); // Parallel wait
 
                 const orderData = {
                     shopId: currentShopId, customerId: user.uid,
@@ -435,7 +401,7 @@
                 document.getElementById('success-modal').classList.remove('hidden');
             } catch (e) { 
                 console.error(e);
-                window.showPopup("Upload Failed", "Connectivity issue detected. Please check your internet.", "error"); 
+                window.showPopup("Upload Error", "Connection is too slow or failed.", "error"); 
                 btnSubmit.innerHTML = `Send Order <i data-lucide="send" class="w-5 h-5"></i>`; 
                 btnSubmit.disabled = false; 
                 lucide.createIcons();
