@@ -6,7 +6,7 @@ import { ref, deleteObject } from "https://www.gstatic.com/firebasejs/10.8.0/fir
 // --- Configuration & State ---
 const appId = typeof __app_id !== 'undefined' ? __app_id : 'default-app-id';
 let currentShopId = null;
-let currentShopRef = null; // Correct path for updates
+let currentShopRef = null; 
 let soundEnabled = true;
 let previousPendingCount = 0;
 let qFilter = 'all';
@@ -32,6 +32,24 @@ function formatToDDMMYYYY(dateStr) {
     return `${day}/${month}/${year}`;
 }
 
+// --- Helper: Format Full Time (HH:MM AM/PM) ---
+function formatTime(timestamp) {
+    if(!timestamp) return "";
+    const date = timestamp.seconds ? new Date(timestamp.seconds * 1000) : new Date(timestamp);
+    return date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+}
+
+// --- Helper: Format Expiry Full (DD/MM/YYYY HH:MM) ---
+function formatExpiryFull(expiryTimestamp) {
+    if(!expiryTimestamp) return "";
+    const date = new Date(expiryTimestamp);
+    const day = String(date.getDate()).padStart(2, '0');
+    const month = String(date.getMonth() + 1).padStart(2, '0');
+    const year = date.getFullYear();
+    const time = date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+    return `${day}/${month}/${year} ${time}`;
+}
+
 // ==========================================
 // 1. UI NAVIGATION & SIDEBAR
 // ==========================================
@@ -52,7 +70,8 @@ window.switchView = (name, el) => {
     
     if (window.innerWidth < 1024 && document.getElementById('sidebar')) {
         document.getElementById('sidebar').classList.add('-translate-x-full');
-        document.getElementById('mobile-overlay').classList.add('hidden');
+        const overlay = document.getElementById('mobile-overlay');
+        if(overlay) overlay.classList.add('hidden');
     }
     
     if (window.lucide) window.lucide.createIcons();
@@ -96,7 +115,6 @@ onAuthStateChanged(auth, async (user) => {
             const emailDisp = document.getElementById('shop-user-email');
             if(emailDisp) emailDisp.textContent = user.email;
 
-            // Multiple paths to find user profile
             const pathsToTry = [
                 doc(db, 'artifacts', appId, 'users', user.uid, 'profile', 'data'),
                 doc(db, 'artifacts', appId, 'users', user.uid),
@@ -130,7 +148,7 @@ onAuthStateChanged(auth, async (user) => {
                 if (shopData) {
                     document.getElementById('ui-shop-name').textContent = shopData.shopName;
                     const ownerEl = document.getElementById('shop-owner-name');
-                    if(ownerEl) ownerEl.textContent = shopData.ownerName || "Shop Owner";
+                    if(ownerEl) ownerEl.textContent = shopData.ownerName || "Authorized Manager";
                     document.getElementById('ui-shop-id').textContent = 'ID: ' + currentShopId;
                 }
 
@@ -145,6 +163,13 @@ onAuthStateChanged(auth, async (user) => {
     }
 });
 
+const logoutBtn = document.getElementById('btn-logout');
+if (logoutBtn) {
+    logoutBtn.onclick = () => {
+        signOut(auth).then(() => { window.location.href = "index.html"; });
+    };
+}
+
 // ==========================================
 // 3. QR CODE LOGIC
 // ==========================================
@@ -153,8 +178,7 @@ function generateShopQR() {
     if (!con || !currentShopId) return;
     con.innerHTML = "";
     
-    // Dynamically get correct base URL
-    const currentUrl = window.location.href;
+    const currentUrl = window.location.origin + window.location.pathname;
     const baseUrl = currentUrl.substring(0, currentUrl.lastIndexOf('/')) + "/customer.html";
     const shopUrl = `${baseUrl}?shop=${currentShopId}`;
     
@@ -177,11 +201,11 @@ window.copyShopLink = () => {
     const el = document.createElement('textarea');
     el.value = url;
     document.body.appendChild(el); el.select(); document.execCommand('copy'); document.body.removeChild(el);
-    window.showToast('Shop Link Copied!', 'success');
+    window.showToast('Link copied to clipboard!', 'success');
 };
 
 // ==========================================
-// 4. REAL-TIME QUEUE LISTENER (FIXED FOR MULTI-FILE)
+// 4. REAL-TIME QUEUE LISTENER
 // ==========================================
 function startListeningToQueue() {
     const q = collection(db, 'artifacts', appId, 'public', 'data', 'prints');
@@ -195,9 +219,8 @@ function startListeningToQueue() {
             data.id = docSnap.id;
             if (data.shopId !== currentShopId) return;
 
-            // Auto-Delete expired jobs
+            // Auto-Delete logic
             if (data.expiresAt && now > data.expiresAt && !data.fileDeleted) {
-                // Delete storage files
                 if (data.files && Array.isArray(data.files)) {
                     data.files.forEach(f => {
                         if (f.filePath) deleteObject(ref(storage, f.filePath)).catch(() => {});
@@ -228,80 +251,91 @@ function startListeningToQueue() {
         if (pendingCount > previousPendingCount && soundEnabled) playAlertSound();
         previousPendingCount = pendingCount;
 
-        allJobs.sort((a, b) => b.createdAt?.seconds - a.createdAt?.seconds || b.createdAt - a.createdAt);
+        // Sequence: Latest at top for history, Earliest at top for active queue
+        allJobs.sort((a, b) => {
+            const timeA = a.createdAt?.seconds || a.createdAt || 0;
+            const timeB = b.createdAt?.seconds || b.createdAt || 0;
+            return timeB - timeA;
+        });
+
         renderQueue();
         renderDone();
     });
 }
 
 /**
- * 🟢 BUILD CARD UI: Updated for multi-file support 🟢
+ * 🟢 BUILD CARD UI: Display Time & Scheduled Delete 🟢
  */
 function buildCard(j) {
     const isDone = j.status === 'Done';
-    const createdAt = j.createdAt?.seconds ? new Date(j.createdAt.seconds * 1000) : new Date(j.createdAt);
-    const timeStr = createdAt.toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'});
+    const timeStr = formatTime(j.createdAt);
     const statusCol = j.status === 'Pending' ? 'bg-yellow-400' : j.status === 'Printing' ? 'bg-blue-600' : 'bg-emerald-500';
     
-    // Multi-File Render logic
     let filesHtml = "";
     if (j.files && Array.isArray(j.files)) {
         filesHtml = j.files.map(f => `
-            <div class="flex items-center gap-3 bg-slate-50 p-3 rounded-2xl border border-slate-100 mb-2">
+            <div class="flex items-center gap-3 bg-slate-50 p-3 rounded-2xl border border-slate-100 mb-2 group/file">
                 <div class="p-2 bg-white rounded-xl shadow-xs shrink-0"><i data-lucide="file-text" class="w-5 h-5 ${f.settings?.colorMode === 'color' ? 'text-purple-500' : 'text-blue-500'}"></i></div>
                 <div class="flex-1 min-w-0">
                     <p class="text-[13px] font-bold text-slate-700 truncate">${f.fileName}</p>
                     <p class="text-[10px] font-bold text-slate-400 uppercase tracking-tighter">${f.settings?.colorMode?.toUpperCase() || 'B&W'} • ${f.pages || 1} Pgs • ₹${f.price || 0}</p>
                 </div>
-                ${!j.fileDeleted ? `<a href="${f.fileUrl}" target="_blank" class="text-[10px] font-black text-blue-600 bg-blue-50 px-3 py-2 rounded-xl uppercase">Open</a>` : ''}
+                ${!j.fileDeleted ? `<a href="${f.fileUrl}" target="_blank" class="text-[9px] font-black text-blue-600 bg-blue-50 px-3 py-2 rounded-lg uppercase hover:bg-blue-600 hover:text-white transition-all">Open</a>` : ''}
             </div>
         `).join('');
-    } else {
-        // Fallback for single file (legacy)
-        filesHtml = `
-            <div class="flex items-center gap-3 bg-slate-50 p-3 rounded-2xl border border-slate-100 mb-2 text-slate-400 italic text-xs">
-                No individual files found.
+    }
+
+    const priceBadge = `<div class="bg-emerald-500 text-white px-2.5 py-1.5 rounded-xl text-xs font-black shadow-sm">₹${j.billEstimate || 0}</div>`;
+
+    // 🟢 SCHEDULED DELETION INFO 🟢
+    let deletionHtml = "";
+    if(j.expiresAt && !j.fileDeleted) {
+        deletionHtml = `
+            <div class="mt-3 flex items-center gap-1.5 text-[10px] font-bold text-red-500 bg-red-50 border border-red-100 px-3 py-1.5 rounded-xl w-fit">
+                <i data-lucide="clock-alert" class="w-3.5 h-3.5"></i>
+                Auto-delete: ${formatExpiryFull(j.expiresAt)}
             </div>
         `;
     }
 
-    const priceBadge = `<div class="bg-emerald-500 text-white px-2 py-1 rounded-lg text-xs font-black shadow-sm">₹${j.billEstimate || 0}</div>`;
-
     return `
-    <div class="bg-white rounded-2xl p-5 border border-slate-200 shadow-sm relative overflow-hidden transition-all hover:shadow-md ${isDone ? 'opacity-80' : ''}">
-        <div class="absolute left-0 top-0 bottom-0 w-1.5 ${statusCol}"></div>
-        <div class="flex justify-between items-start mb-4">
-            <div class="flex items-center gap-2">
-                <div class="bg-slate-900 text-white px-3 py-1.5 rounded-xl text-xl font-black">#${j.token}</div>
+    <div class="bg-white rounded-[2rem] p-6 border border-slate-200 shadow-sm relative overflow-hidden transition-all hover:shadow-xl ${isDone ? 'opacity-90' : ''}">
+        <div class="absolute left-0 top-0 bottom-0 w-2 ${statusCol}"></div>
+        
+        <div class="flex justify-between items-start mb-5">
+            <div class="flex items-center gap-3">
+                <div class="bg-slate-900 text-white px-4 py-2 rounded-2xl text-xl font-black shadow-lg">#${j.token}</div>
                 ${priceBadge}
             </div>
             <div class="flex flex-col items-end">
-                <div class="text-[10px] font-black text-slate-400 uppercase tracking-widest bg-slate-100 px-2 py-1 rounded-md">${timeStr}</div>
-                ${j.fileDeleted ? `<div class="text-[9px] font-bold text-red-500 mt-1 uppercase">Doc Purged</div>` : ''}
+                <div class="text-[10px] font-black text-slate-400 uppercase tracking-widest bg-slate-50 border border-slate-200 px-3 py-1.5 rounded-xl">Received At: ${timeStr}</div>
+                ${j.fileDeleted ? `<div class="text-[9px] font-black text-red-500 mt-2 flex items-center gap-1"><i data-lucide="shield-off" class="w-3 h-3"></i> FILES PURGED</div>` : ''}
             </div>
         </div>
         
-        <div class="mb-4">
+        <div class="mb-5">
             ${filesHtml}
         </div>
 
-        ${j.notes ? `<div class="mb-4 text-[11px] bg-amber-50 p-3 rounded-xl text-amber-700 border border-amber-100 italic flex gap-2"><i data-lucide="message-square" class="w-3 h-3 mt-0.5"></i> ${j.notes}</div>` : ''}
+        ${j.notes ? `<div class="mb-4 text-[11px] bg-amber-50 p-4 rounded-2xl text-amber-700 border border-amber-100 italic flex gap-2 leading-relaxed"><i data-lucide="info" class="w-4 h-4 mt-0.5 shrink-0"></i> <span>Customer Note: ${j.notes}</span></div>` : ''}
 
-        <div class="flex gap-2">
+        ${deletionHtml}
+
+        <div class="flex gap-3 mt-6">
             ${!isDone ? 
                 (j.status === 'Pending' ? 
-                    `<button onclick="window.updateJobStatus('${j.id}', 'Printing')" class="flex-1 bg-blue-600 text-white text-xs font-black py-3 rounded-xl shadow-lg active:scale-95 transition-all">Start Printing</button>` : 
-                    `<button onclick="window.markJobAsDone('${j.id}')" class="flex-1 bg-emerald-600 text-white text-xs font-black py-3 rounded-xl shadow-lg active:scale-95 transition-all">Mark Complete</button>`) 
-                : `<div class="flex-1 text-center py-2 text-emerald-600 font-black text-xs uppercase bg-emerald-50 rounded-xl border border-emerald-100">Printed ✓</div>`
+                    `<button onclick="window.updateJobStatus('${j.id}', 'Printing')" class="flex-1 bg-blue-600 hover:bg-blue-700 text-white text-[13px] font-black py-4 rounded-2xl shadow-lg transition-all active:scale-95 flex items-center justify-center gap-2"><i data-lucide="printer" class="w-4 h-4"></i> Start Printing</button>` : 
+                    `<button onclick="window.markJobAsDone('${j.id}')" class="flex-1 bg-emerald-600 hover:bg-emerald-700 text-white text-[13px] font-black py-4 rounded-2xl shadow-lg active:scale-95 flex items-center justify-center gap-2"><i data-lucide="check-circle" class="w-4 h-4"></i> Mark as Done</button>`) 
+                : `<div class="flex-1 text-center py-3.5 text-emerald-600 font-black text-xs uppercase bg-emerald-50 rounded-2xl border border-emerald-100 flex items-center justify-center gap-2">Print Completed <i data-lucide="check-check" class="w-4 h-4"></i></div>`
             }
             
             ${!j.fileDeleted ? `
-                <button onclick="window.openExpiryModal('${j.id}')" class="p-3 text-slate-400 hover:text-blue-600 hover:bg-blue-50 rounded-xl transition-colors" title="Set Auto-Delete Timer">
+                <button onclick="window.openExpiryModal('${j.id}')" class="p-4 text-slate-400 bg-slate-50 border border-slate-100 hover:text-blue-600 hover:bg-white rounded-2xl transition-all shadow-sm" title="Set Deletion Timer">
                     <i data-lucide="timer" class="w-5 h-5"></i>
                 </button>
             ` : ''}
 
-            <button onclick="window.askDelete('${j.id}', '${j.filePath}', ${isDone})" class="p-3 text-slate-400 hover:text-red-600 transition-colors">
+            <button onclick="window.askDelete('${j.id}', '${j.filePath}', ${isDone})" class="p-4 text-slate-400 bg-slate-50 border border-slate-100 hover:text-red-600 hover:bg-white rounded-2xl transition-all shadow-sm">
                 <i data-lucide="trash-2" class="w-5 h-5"></i>
             </button>
         </div>
@@ -312,7 +346,7 @@ function renderQueue() {
     const qc = document.getElementById('queue-cards');
     if (!qc) return;
     const filtered = allJobs.filter(j => j.status !== 'Done' && (qFilter === 'all' || j.status === qFilter));
-    qc.innerHTML = filtered.length ? filtered.map(j => buildCard(j)).join('') : `<div class="col-span-full py-20 text-center"><i data-lucide="inbox" class="w-12 h-12 text-slate-200 mx-auto mb-2"></i><p class="text-sm font-bold text-slate-400 uppercase tracking-widest text-xs">No active prints</p></div>`;
+    qc.innerHTML = filtered.length ? filtered.map(j => buildCard(j)).join('') : `<div class="col-span-full py-24 text-center"><div class="w-20 h-20 bg-slate-100 rounded-full flex items-center justify-center mx-auto mb-4 border-2 border-slate-200 border-dashed"><i data-lucide="inbox" class="w-10 h-10 text-slate-300"></i></div><p class="text-sm font-bold text-slate-400 uppercase tracking-[0.2em]">Queue is currently empty</p></div>`;
     if (window.lucide) window.lucide.createIcons();
 }
 
@@ -329,11 +363,11 @@ function renderDone() {
     }
 
     if (!filtered.length) {
-        dc.innerHTML = `<div class="col-span-full py-20 text-center text-slate-400 text-xs font-bold uppercase tracking-widest">No history found</div>`;
+        dc.innerHTML = `<div class="col-span-full py-20 text-center text-slate-400 text-xs font-bold uppercase tracking-widest">No matching history found</div>`;
         return;
     }
 
-    // Grouping by Date
+    // Professional Grouping by Date
     const groups = {};
     filtered.forEach(j => {
         const rawDate = j.createdAt?.seconds ? new Date(j.createdAt.seconds * 1000).toISOString().split('T')[0] : new Date(j.createdAt).toISOString().split('T')[0];
@@ -344,10 +378,10 @@ function renderDone() {
 
     let html = '';
     for (const date in groups) {
-        html += `<div class="col-span-full mt-6 mb-2 flex items-center gap-4">
-                    <div class="h-px bg-slate-200 flex-1"></div>
-                    <span class="text-[10px] font-black uppercase text-slate-400 tracking-[0.2em] whitespace-nowrap">${date}</span>
-                    <div class="h-px bg-slate-200 flex-1"></div>
+        html += `<div class="col-span-full mt-10 mb-4 flex items-center gap-6">
+                    <div class="h-[1px] bg-slate-200 flex-1"></div>
+                    <span class="text-[11px] font-black uppercase text-slate-400 tracking-[0.3em] whitespace-nowrap bg-slate-100 px-4 py-1.5 rounded-full border border-slate-200 shadow-sm">${date}</span>
+                    <div class="h-[1px] bg-slate-200 flex-1"></div>
                  </div>`;
         html += groups[date].map(j => buildCard(j)).join('');
     }
@@ -361,7 +395,7 @@ function renderDone() {
 // ==========================================
 window.updateJobStatus = async (id, status) => {
     await updateDoc(doc(db, 'artifacts', appId, 'public', 'data', 'prints', id), { status });
-    window.showToast(`Order updated to ${status}`);
+    window.showToast(`Order status set to: ${status}`, "info");
 };
 
 window.markJobAsDone = async (id) => {
@@ -378,7 +412,7 @@ window.markJobAsDone = async (id) => {
     if (statSnap.exists()) await updateDoc(statRef, { revenue: increment(amount), totalTokens: increment(1) });
     else await setDoc(statRef, { shopId: currentShopId, date: dateKey, revenue: amount, totalTokens: 1, timestamp: Date.now() });
     
-    window.showToast("Job Completed & Revenue Added!", "success");
+    window.showToast("Job Completed! Revenue updated.", "success");
 };
 
 // ==========================================
@@ -425,7 +459,7 @@ function updateAnalyticsUI() {
 }
 
 // ==========================================
-// 7. SHOP PRICING SETTINGS (TIERED)
+// 7. SHOP PRICING SETTINGS
 // ==========================================
 async function loadShopPricingUI() {
     if(!currentShopRef) return; 
@@ -450,7 +484,7 @@ window.saveShopRates = async () => {
     const threshold = parseInt(document.getElementById('tier-threshold').value);
     
     if(isNaN(bw) || isNaN(color) || isNaN(threshold)){
-        window.showToast("Kripya sahi rates bhariye.", "error");
+        window.showToast("Please enter valid rate values.", "error");
         return;
     }
 
@@ -460,8 +494,8 @@ window.saveShopRates = async () => {
             colorRate: color, colorRateBulk: colorBulk,
             tierThreshold: threshold
         });
-        window.showToast("Tiered rates updated!", "success");
-    } catch(e) { window.showToast("Save fail ho gaya.", "error"); }
+        window.showToast("Pricing tiers saved successfully!", "success");
+    } catch(e) { window.showToast("Failed to save pricing.", "error"); }
 };
 
 // ==========================================
@@ -471,13 +505,14 @@ window.askDelete = (id, path, isDoneRecord) => {
     deleteContext = { id, path, isDoneRecord };
     const modal = document.getElementById('confirm-modal');
     if (modal) {
-        modal.querySelector('p').textContent = isDoneRecord ? "Document remove hoga par record rahega." : "Order cancel karke delete hoga.";
+        modal.querySelector('p').textContent = isDoneRecord ? "Document will be removed from storage, but the history record will stay." : "This will cancel the order and delete it permanently.";
         modal.classList.remove('hidden');
     }
 };
 
 window.closeConfirm = () => {
-    document.getElementById('confirm-modal').classList.add('hidden');
+    const modal = document.getElementById('confirm-modal');
+    if (modal) modal.classList.add('hidden');
     deleteContext = null;
 };
 
@@ -487,7 +522,6 @@ document.getElementById('btn-confirm-delete').onclick = async () => {
     try {
         const job = allJobs.find(x => x.id === id);
         if (job) {
-            // Delete storage files
             if (job.files && Array.isArray(job.files)) {
                 for (let f of job.files) {
                     if (f.filePath) await deleteObject(ref(storage, f.filePath)).catch(() => {});
@@ -499,10 +533,10 @@ document.getElementById('btn-confirm-delete').onclick = async () => {
         
         if (isDoneRecord) {
             await updateDoc(doc(db, 'artifacts', appId, 'public', 'data', 'prints', id), { fileDeleted: true });
-            window.showToast("Files deleted, record kept.");
+            window.showToast("Files deleted. Transaction record saved.");
         } else {
             await deleteDoc(doc(db, 'artifacts', appId, 'public', 'data', 'prints', id));
-            window.showToast("Order removed.");
+            window.showToast("Order removed successfully.");
         }
     } catch(e) { console.error(e); }
     window.closeConfirm();
@@ -511,6 +545,10 @@ document.getElementById('btn-confirm-delete').onclick = async () => {
 window.openExpiryModal = (id) => {
     expiryContextId = id;
     document.getElementById('expiry-modal').classList.remove('hidden');
+    // Ensure proportional widths in JS injection as safety
+    const v = document.getElementById('expiry-val');
+    const u = document.getElementById('expiry-unit');
+    if(v && u) { v.style.width = "65%"; u.style.width = "35%"; }
 };
 
 window.closeExpiryModal = () => {
@@ -522,25 +560,39 @@ document.getElementById('btn-save-expiry').onclick = async () => {
     if (!expiryContextId) return;
     const val = parseInt(document.getElementById('expiry-val').value);
     const unit = document.getElementById('expiry-unit').value;
-    if (isNaN(val) || val <= 0) return;
+    if (isNaN(val) || val <= 0) {
+        window.showToast("Please enter a valid number.", "error");
+        return;
+    }
     let mult = unit === 'hours' ? (60 * 60 * 1000) : (24 * 60 * 60 * 1000);
     try {
         await updateDoc(doc(db, 'artifacts', appId, 'public', 'data', 'prints', expiryContextId), { expiresAt: Date.now() + (val * mult) });
-        window.showToast(`Auto-delete set for ${val} ${unit}.`);
+        window.showToast(`Auto-delete scheduled: ${val} ${unit}.`, "success");
         window.closeExpiryModal();
     } catch(e) { console.error(e); }
 };
 
-window.toggleSound = () => { soundEnabled = !soundEnabled; window.showToast(soundEnabled ? "Sound ON" : "Sound Muted"); };
+window.toggleSound = () => { 
+    soundEnabled = !soundEnabled; 
+    const btn = document.getElementById('sound-btn');
+    if(btn) btn.innerHTML = soundEnabled ? '<i data-lucide="bell" class="w-5 h-5 text-blue-500"></i>' : '<i data-lucide="bell-off" class="w-5 h-5 text-slate-400"></i>';
+    window.showToast(soundEnabled ? "Notifications Sound: ON" : "Notifications Sound: OFF"); 
+    lucide.createIcons();
+};
 
 function playAlertSound() { try { const audioCtx = new AudioContext(); const osc = audioCtx.createOscillator(); osc.connect(audioCtx.destination); osc.start(); osc.stop(audioCtx.currentTime + 0.15); } catch(e) {} }
 
 window.showToast = (msg, type = 'info') => {
     const t = document.getElementById('toast');
     const msgEl = document.getElementById('toast-msg');
-    const icon = document.getElementById('toast-icon');
+    const icon = t.querySelector('i');
     if (msgEl) msgEl.textContent = msg;
+    if(icon) {
+        icon.className = `w-5 h-5 ${type === 'success' ? 'text-emerald-400' : 'text-blue-400'}`;
+        icon.setAttribute('data-lucide', type === 'success' ? 'check-circle' : 'info');
+    }
     if (t) { t.classList.remove('opacity-0', '-translate-y-4'); t.classList.add('opacity-100', 'translate-y-0'); setTimeout(() => { if(t) { t.classList.remove('opacity-100', 'translate-y-0'); t.classList.add('opacity-0', '-translate-y-4'); } }, 3000); }
+    lucide.createIcons();
 };
 
 if (window.lucide) window.lucide.createIcons();
