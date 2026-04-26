@@ -1,9 +1,9 @@
 import { auth, db, storage } from './firebase-init.js';
-import { onAuthStateChanged, signOut, signInWithCustomToken, signInAnonymously } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-auth.js";
+import { onAuthStateChanged, signOut, signInAnonymously, signInWithCustomToken } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-auth.js";
 import { doc, getDoc, setDoc, collection, query, where, onSnapshot, updateDoc, deleteDoc, increment } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js";
 import { ref, deleteObject } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-storage.js";
 
-// --- Configuration ---
+// --- Configuration & State ---
 const appId = typeof __app_id !== 'undefined' ? __app_id : 'default-app-id';
 let currentShopId = null;
 let soundEnabled = true;
@@ -11,6 +11,7 @@ let previousPendingCount = 0;
 let qFilter = 'all';
 let allJobs = []; 
 let deleteContext = null; 
+let expiryContextId = null; 
 
 // ==========================================
 // 1. UI NAVIGATION & SIDEBAR (Window Scope)
@@ -47,7 +48,7 @@ window.filterQ = (f, btn) => {
 };
 
 // ==========================================
-// 2. AUTHENTICATION & MULTI-PATH DATA FETCH
+// 2. AUTHENTICATION & DATA LOADING
 // ==========================================
 onAuthStateChanged(auth, async (user) => {
     if (user) {
@@ -55,7 +56,7 @@ onAuthStateChanged(auth, async (user) => {
             const emailDisp = document.getElementById('shop-user-email');
             if(emailDisp) emailDisp.textContent = user.email || "Partner Account";
 
-            // Paths logic to find user profile
+            // Multi-path search for user profile (Rule 1 paths)
             const pathsToTry = [
                 doc(db, 'artifacts', appId, 'users', user.uid, 'profile', 'data'),
                 doc(db, 'artifacts', appId, 'users', user.uid),
@@ -74,32 +75,35 @@ onAuthStateChanged(auth, async (user) => {
             if (userData && userData.shopId) {
                 currentShopId = userData.shopId;
                 
-                const shopDocRef = doc(db, 'artifacts', appId, 'public', 'data', 'shops', currentShopId);
-                const shopDoc = await getDoc(shopDocRef);
-                
-                if (shopDoc.exists()) {
-                    const shopData = shopDoc.data();
-                    document.getElementById('ui-shop-name').textContent = shopData.shopName;
-                    
-                    // 🟢 FIX: Setting Shop Owner Name in Sidebar 🟢
-                    const ownerNameEl = document.getElementById('shop-owner-name');
-                    if(ownerNameEl) ownerNameEl.textContent = shopData.ownerName || "Shop Owner";
-                    
-                    document.getElementById('ui-shop-id').textContent = 'ID: ' + currentShopId;
-                    
-                    generateShopQR();
-                    startListeningToQueue();
-                    loadShopAnalytics();
-                } else {
-                    document.getElementById('ui-shop-name').textContent = "Shop: " + currentShopId;
-                    document.getElementById('ui-shop-id').textContent = 'ID: ' + currentShopId;
-                    generateShopQR();
-                    startListeningToQueue();
-                    loadShopAnalytics();
+                // Fetch public shop details (Rule 1 paths)
+                const shopPaths = [
+                    doc(db, 'artifacts', appId, 'public', 'data', 'shops', currentShopId),
+                    doc(db, 'shops', currentShopId)
+                ];
+
+                let shopData = null;
+                for(let sRef of shopPaths) {
+                    const sSnap = await getDoc(sRef);
+                    if(sSnap.exists()) {
+                        shopData = sSnap.data();
+                        break;
+                    }
                 }
+                
+                if (shopData) {
+                    // Update Header and Sidebar with real names
+                    document.getElementById('ui-shop-name').textContent = shopData.shopName;
+                    const ownerEl = document.getElementById('shop-owner-name');
+                    if(ownerEl) ownerEl.textContent = shopData.ownerName || "Shop Owner";
+                    document.getElementById('ui-shop-id').textContent = 'ID: ' + currentShopId;
+                }
+
+                generateShopQR();
+                startListeningToQueue();
+                loadShopAnalytics();
             } else {
-                console.error("User profile not found.");
-                document.getElementById('ui-shop-name').textContent = "Account Error";
+                document.getElementById('ui-shop-name').textContent = "Unauthorized Access";
+                window.showToast("Profile not found in database.", "error");
             }
         } catch(e) { 
             console.error("Dashboard init error:", e); 
@@ -116,23 +120,20 @@ onAuthStateChanged(auth, async (user) => {
 const logoutBtn = document.getElementById('btn-logout');
 if (logoutBtn) {
     logoutBtn.onclick = () => {
-        signOut(auth).then(() => {
-            window.location.href = "index.html"; 
-        });
+        signOut(auth).then(() => { window.location.href = "index.html"; });
     };
 }
 
 // ==========================================
-// 3. QR CODE GENERATION
+// 3. QR CODE LOGIC
 // ==========================================
 function generateShopQR() {
     const con = document.getElementById('main-qr-canvas');
     if (!con || !currentShopId) return;
     con.innerHTML = "";
     
-    const currentPath = window.location.pathname;
-    const baseUrl = window.location.origin + currentPath.substring(0, currentPath.lastIndexOf('/') + 1);
-    const shopUrl = `${baseUrl}customer.html?shop=${currentShopId}`;
+    const baseUrl = window.location.origin + window.location.pathname.replace('shop.html', 'customer.html');
+    const shopUrl = `${baseUrl}?shop=${currentShopId}`;
     
     const linkText = document.getElementById('qr-link-text');
     if(linkText) linkText.textContent = shopUrl;
@@ -150,9 +151,7 @@ function generateShopQR() {
 }
 
 window.copyShopLink = () => {
-    const textEl = document.getElementById('qr-link-text');
-    if(!textEl) return;
-    const url = textEl.textContent;
+    const url = document.getElementById('qr-link-text').textContent;
     const el = document.createElement('textarea');
     el.value = url;
     document.body.appendChild(el);
@@ -163,7 +162,7 @@ window.copyShopLink = () => {
 };
 
 // ==========================================
-// 4. QUEUE & RENDERING
+// 4. REAL-TIME QUEUE LISTENER
 // ==========================================
 function startListeningToQueue() {
     const q = collection(db, 'artifacts', appId, 'public', 'data', 'prints');
@@ -179,6 +178,7 @@ function startListeningToQueue() {
             
             if (data.shopId !== currentShopId) return;
 
+            // Auto-Delete expired jobs
             if (data.expiresAt && now > data.expiresAt) {
                 if (data.filePath) deleteObject(ref(storage, data.filePath)).catch(() => {});
                 deleteDoc(doc(db, 'artifacts', appId, 'public', 'data', 'prints', data.id));
@@ -189,10 +189,8 @@ function startListeningToQueue() {
             if (data.status === 'Pending' || data.status === 'Printing') pendingCount++;
         });
 
-        const pendingDisp = document.getElementById('s-pending');
-        const totalDisp = document.getElementById('s-total');
-        if(pendingDisp) pendingDisp.textContent = pendingCount;
-        if(totalDisp) totalDisp.textContent = allJobs.length;
+        if(document.getElementById('s-pending')) document.getElementById('s-pending').textContent = pendingCount;
+        if(document.getElementById('s-total')) document.getElementById('s-total').textContent = allJobs.length;
         
         const badge = document.getElementById('q-badge');
         if (badge) {
@@ -206,37 +204,22 @@ function startListeningToQueue() {
         allJobs.sort((a, b) => b.createdAt - a.createdAt);
         renderQueue();
         renderDone();
-    }, (err) => {
-        console.error("Firestore error:", err);
     });
 }
-
-// 🟢 CUSTOM EXPIRY LOGIC (Window Binding) 🟢
-window.setCustomExpiry = async (id) => {
-    const hours = prompt("Ise kitne ghante (hours) baad auto-delete karna hai? (e.g. 5 ya 10):", "3");
-    if (hours !== null && !isNaN(hours) && hours > 0) {
-        try {
-            const newExpiry = Date.now() + (parseInt(hours) * 60 * 60 * 1000);
-            await updateDoc(doc(db, 'artifacts', appId, 'public', 'data', 'prints', id), {
-                expiresAt: newExpiry
-            });
-            window.showToast(`Auto-delete set to ${hours} hours.`, "success");
-        } catch(e) { console.error(e); }
-    } else if (hours !== null) {
-        window.showToast("Kripya sahi number daalein.", "error");
-    }
-};
 
 function buildCard(j) {
     const isDone = j.status === 'Done';
     const time = new Date(j.createdAt).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'});
     const statusCol = j.status === 'Pending' ? 'bg-yellow-400' : j.status === 'Printing' ? 'bg-blue-600' : 'bg-emerald-500';
     
-    // Calculate remaining time for display
     let timeLabel = '';
     if (j.expiresAt) {
-        const remainingHours = Math.round((j.expiresAt - Date.now()) / (1000 * 60 * 60));
-        timeLabel = remainingHours > 0 ? `${remainingHours}h left` : 'Deleting soon';
+        const remainingMinutes = Math.round((j.expiresAt - Date.now()) / (1000 * 60));
+        if (remainingMinutes > 60) {
+            timeLabel = Math.floor(remainingMinutes / 60) + "h left";
+        } else {
+            timeLabel = Math.max(0, remainingMinutes) + "m left";
+        }
     }
 
     return `
@@ -246,7 +229,7 @@ function buildCard(j) {
             <div class="bg-slate-900 text-white px-4 py-1.5 rounded-xl text-xl font-black">#${j.token}</div>
             <div class="flex flex-col items-end">
                 <div class="text-[10px] font-black text-slate-400 uppercase tracking-widest bg-slate-100 px-2 py-1 rounded-md">${time}</div>
-                ${isDone ? `<div class="text-[9px] font-bold text-red-400 mt-1 flex items-center gap-1"><i data-lucide="clock" class="w-3 h-3"></i> ${timeLabel}</div>` : ''}
+                ${isDone && timeLabel ? `<div class="text-[9px] font-bold text-red-500 mt-1 flex items-center gap-1"><i data-lucide="clock" class="w-3 h-3"></i> ${timeLabel}</div>` : ''}
             </div>
         </div>
         
@@ -264,13 +247,13 @@ function buildCard(j) {
         <div class="flex gap-2">
             ${!isDone ? 
                 (j.status === 'Pending' ? 
-                    `<button onclick="window.updateJobStatus('${j.id}', 'Printing')" class="flex-1 bg-blue-600 hover:bg-blue-700 text-white text-xs font-black py-3 rounded-xl shadow-lg transition-all active:scale-95">Start Printing</button>` : 
-                    `<button onclick="window.markJobAsDone('${j.id}')" class="flex-1 bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-black py-3 rounded-xl shadow-lg active:scale-95">Complete</button>`) 
+                    `<button onclick="window.updateJobStatus('${j.id}', 'Printing')" class="flex-1 bg-blue-600 text-white text-xs font-black py-3 rounded-xl shadow-lg active:scale-95 transition-all">Start Print</button>` : 
+                    `<button onclick="window.markJobAsDone('${j.id}')" class="flex-1 bg-emerald-600 text-white text-xs font-black py-3 rounded-xl shadow-lg active:scale-95 transition-all">Complete</button>`) 
                 : `<div class="flex-1 text-center py-2 text-emerald-600 font-black text-xs uppercase bg-emerald-50 rounded-xl border border-emerald-100">Printed ✓</div>`
             }
             
-            <!-- 🟢 TIMER SETTING BUTTON 🟢 -->
-            <button onclick="window.setCustomExpiry('${j.id}')" class="p-3 text-slate-400 hover:text-blue-600 hover:bg-blue-50 rounded-xl transition-colors" title="Set Auto-Delete Timer">
+            <!-- Custom Expiry Button -->
+            <button onclick="window.openExpiryModal('${j.id}')" class="p-3 text-slate-400 hover:text-blue-600 hover:bg-blue-50 rounded-xl transition-colors" title="Set Auto-Delete Timer">
                 <i data-lucide="timer" class="w-5 h-5"></i>
             </button>
 
@@ -283,7 +266,7 @@ function renderQueue() {
     const qc = document.getElementById('queue-cards');
     if (!qc) return;
     const filtered = allJobs.filter(j => j.status !== 'Done' && (qFilter === 'all' || j.status === qFilter));
-    qc.innerHTML = filtered.length ? filtered.map(j => buildCard(j)).join('') : `<div class="col-span-full py-20 text-center"><i data-lucide="inbox" class="w-12 h-12 text-slate-200 mx-auto mb-2"></i><p class="text-sm font-bold text-slate-400 uppercase tracking-widest text-xs">Queue is Empty</p></div>`;
+    qc.innerHTML = filtered.length ? filtered.map(j => buildCard(j)).join('') : `<div class="col-span-full py-20 text-center"><p class="text-sm font-bold text-slate-400 uppercase tracking-widest text-xs">Queue is Empty</p></div>`;
     if (window.lucide) window.lucide.createIcons();
 }
 
@@ -309,7 +292,7 @@ window.markJobAsDone = async (id) => {
 
     await updateDoc(doc(db, 'artifacts', appId, 'public', 'data', 'prints', id), { status: 'Done' });
     
-    // Revenue Ledger Logic
+    // Revenue Ledger Logic (Daily Records)
     const today = new Date().toISOString().split('T')[0];
     const statRef = doc(db, 'artifacts', appId, 'public', 'data', 'shop_analytics', `${currentShopId}_${today}`);
     const amount = Number(job.billEstimate) || 0;
@@ -324,7 +307,7 @@ window.markJobAsDone = async (id) => {
 };
 
 // ==========================================
-// 6. DELETE MODAL LOGIC
+// 6. PROFESSIONAL MODAL HANDLERS
 // ==========================================
 window.askDelete = (id, path) => {
     deleteContext = { id, path };
@@ -338,21 +321,57 @@ window.closeConfirm = () => {
     deleteContext = null;
 };
 
-const confirmDeleteBtn = document.getElementById('btn-confirm-delete');
-if (confirmDeleteBtn) {
-    confirmDeleteBtn.onclick = async () => {
-        if (!deleteContext) return;
-        const { id, path } = deleteContext;
-        try {
-            if (path && path !== 'undefined') {
-                await deleteObject(ref(storage, path)).catch(() => {});
-            }
-            await deleteDoc(doc(db, 'artifacts', appId, 'public', 'data', 'prints', id));
-            window.showToast("Deleted Forever", "info");
-        } catch(e) { console.error(e); }
-        window.closeConfirm();
-    };
-}
+document.getElementById('btn-confirm-delete').onclick = async () => {
+    if (!deleteContext) return;
+    const { id, path } = deleteContext;
+    try {
+        if (path && path !== 'undefined') {
+            await deleteObject(ref(storage, path)).catch(() => {});
+        }
+        await deleteDoc(doc(db, 'artifacts', appId, 'public', 'data', 'prints', id));
+        window.showToast("Deleted Forever", "info");
+    } catch(e) { console.error(e); }
+    window.closeConfirm();
+};
+
+// 🟢 PROFESSIONAL TIMER MODAL LOGIC 🟢
+window.openExpiryModal = (id) => {
+    expiryContextId = id;
+    const modal = document.getElementById('expiry-modal');
+    if (modal) modal.classList.remove('hidden');
+};
+
+window.closeExpiryModal = () => {
+    const modal = document.getElementById('expiry-modal');
+    if (modal) modal.classList.add('hidden');
+    expiryContextId = null;
+};
+
+document.getElementById('btn-save-expiry').onclick = async () => {
+    if (!expiryContextId) return;
+    const val = parseInt(document.getElementById('expiry-val').value);
+    const unit = document.getElementById('expiry-unit').value;
+    
+    if (isNaN(val) || val <= 0) {
+        window.showToast("Kripya sahi number daalein.", "error");
+        return;
+    }
+
+    // Convert to milliseconds
+    let multiplier = unit === 'hours' ? (60 * 60 * 1000) : (24 * 60 * 60 * 1000);
+    const newExpiry = Date.now() + (val * multiplier);
+
+    try {
+        await updateDoc(doc(db, 'artifacts', appId, 'public', 'data', 'prints', expiryContextId), {
+            expiresAt: newExpiry
+        });
+        window.showToast(`Auto-delete set to ${val} ${unit}.`, "success");
+        window.closeExpiryModal();
+    } catch(e) { 
+        console.error(e); 
+        window.showToast("Error updating timer.", "error");
+    }
+};
 
 // ==========================================
 // 7. ANALYTICS LOADER
@@ -383,9 +402,9 @@ function loadShopAnalytics() {
         const tbody = document.getElementById('daily-revenue-table');
         if (tbody) {
             tbody.innerHTML = logs.map(l => `
-                <tr class="hover:bg-slate-50 transition-colors border-b border-slate-50">
-                    <td class="p-5 font-bold text-slate-600">${l.date}</td>
-                    <td class="p-5 text-center text-blue-600 font-black">${l.totalTokens}</td>
+                <tr class="hover:bg-slate-50 transition-colors border-b border-slate-50 font-medium">
+                    <td class="p-5 text-slate-600">${l.date}</td>
+                    <td class="p-5 text-center text-blue-600 font-bold">${l.totalTokens}</td>
                     <td class="p-5 text-right text-emerald-600 font-black">₹${l.revenue}</td>
                 </tr>
             `).join('');
@@ -394,7 +413,7 @@ function loadShopAnalytics() {
 }
 
 // ==========================================
-// 8. UTILITIES
+// 8. UTILITIES (Sound & Toast)
 // ==========================================
 window.toggleSound = () => {
     soundEnabled = !soundEnabled;
@@ -408,7 +427,7 @@ window.toggleSound = () => {
 
 function playAlertSound() {
     try {
-        const audioCtx = new AudioContext();
+        const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
         const oscillator = audioCtx.createOscillator();
         oscillator.connect(audioCtx.destination);
         oscillator.frequency.setValueAtTime(880, audioCtx.currentTime);
@@ -424,13 +443,8 @@ window.showToast = (msg, type = 'info') => {
     
     if (msgEl) msgEl.textContent = msg;
     if (icon) {
-        if (type === 'success') { 
-            icon.setAttribute('class', 'w-5 h-5 text-emerald-400'); 
-            icon.setAttribute('data-lucide', 'check-circle');
-        } else { 
-            icon.setAttribute('class', 'w-5 h-5 text-blue-400'); 
-            icon.setAttribute('data-lucide', 'info');
-        }
+        icon.setAttribute('class', `w-5 h-5 ${type === 'success' ? 'text-emerald-400' : 'text-blue-400'}`);
+        icon.setAttribute('data-lucide', type === 'success' ? 'check-circle' : 'info');
     }
     
     if (window.lucide) window.lucide.createIcons();
@@ -446,4 +460,5 @@ window.showToast = (msg, type = 'info') => {
     }
 };
 
+// First time Lucide Init
 if (window.lucide) window.lucide.createIcons();
