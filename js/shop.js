@@ -1,7 +1,6 @@
-// Firebase services ko aapki init file se import kar rahe hain
 import { auth, db, storage } from './firebase-init.js';
-import { onAuthStateChanged, signOut, signInAnonymously, signInWithCustomToken } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-auth.js";
-import { doc, getDoc, setDoc, collection, query, onSnapshot, updateDoc, deleteDoc, increment } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js";
+import { onAuthStateChanged, signOut, signInWithCustomToken, signInAnonymously } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-auth.js";
+import { doc, getDoc, setDoc, collection, query, where, onSnapshot, updateDoc, deleteDoc, increment } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js";
 import { ref, deleteObject } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-storage.js";
 
 // --- Configuration ---
@@ -56,21 +55,18 @@ onAuthStateChanged(auth, async (user) => {
             const emailDisp = document.getElementById('shop-user-email');
             if(emailDisp) emailDisp.textContent = user.email || "Partner Account";
 
-            // 🟢 SMART PATH DETECTION 🟢
-            // Hum 3 alag paths par check karenge kyunki Admin panel ka path different ho sakta hai
+            // Paths logic to find user profile
             const pathsToTry = [
-                doc(db, 'artifacts', appId, 'users', user.uid, 'profile', 'data'), // Path 1: Strict Rule 1
-                doc(db, 'artifacts', appId, 'users', user.uid),                  // Path 2: Flat Rule 1
-                doc(db, 'users', user.uid)                                       // Path 3: Root Level (Admin Default)
+                doc(db, 'artifacts', appId, 'users', user.uid, 'profile', 'data'),
+                doc(db, 'artifacts', appId, 'users', user.uid),
+                doc(db, 'users', user.uid)
             ];
 
             let userData = null;
             for (let docRef of pathsToTry) {
-                console.log("Checking profile at:", docRef.path);
                 const snap = await getDoc(docRef);
                 if (snap.exists()) {
                     userData = snap.data();
-                    console.log("Profile found at:", docRef.path);
                     break;
                 }
             }
@@ -78,21 +74,23 @@ onAuthStateChanged(auth, async (user) => {
             if (userData && userData.shopId) {
                 currentShopId = userData.shopId;
                 
-                // Fetch public shop details (Strict Path: artifacts/{appId}/public/data/shops/{shopId})
                 const shopDocRef = doc(db, 'artifacts', appId, 'public', 'data', 'shops', currentShopId);
                 const shopDoc = await getDoc(shopDocRef);
                 
                 if (shopDoc.exists()) {
                     const shopData = shopDoc.data();
                     document.getElementById('ui-shop-name').textContent = shopData.shopName;
-                    document.getElementById('shop-owner-name').textContent = shopData.ownerName || "Shop Owner";
+                    
+                    // 🟢 FIX: Setting Shop Owner Name in Sidebar 🟢
+                    const ownerNameEl = document.getElementById('shop-owner-name');
+                    if(ownerNameEl) ownerNameEl.textContent = shopData.ownerName || "Shop Owner";
+                    
                     document.getElementById('ui-shop-id').textContent = 'ID: ' + currentShopId;
                     
                     generateShopQR();
                     startListeningToQueue();
                     loadShopAnalytics();
                 } else {
-                    // Fallback to manual ID if shop doc is missing but shopId exists
                     document.getElementById('ui-shop-name').textContent = "Shop: " + currentShopId;
                     document.getElementById('ui-shop-id').textContent = 'ID: ' + currentShopId;
                     generateShopQR();
@@ -100,9 +98,8 @@ onAuthStateChanged(auth, async (user) => {
                     loadShopAnalytics();
                 }
             } else {
-                console.error("User profile not found in any path for UID:", user.uid);
+                console.error("User profile not found.");
                 document.getElementById('ui-shop-name').textContent = "Account Error";
-                window.showToast("Profile missing in Database", "error");
             }
         } catch(e) { 
             console.error("Dashboard init error:", e); 
@@ -214,17 +211,43 @@ function startListeningToQueue() {
     });
 }
 
+// 🟢 CUSTOM EXPIRY LOGIC (Window Binding) 🟢
+window.setCustomExpiry = async (id) => {
+    const hours = prompt("Ise kitne ghante (hours) baad auto-delete karna hai? (e.g. 5 ya 10):", "3");
+    if (hours !== null && !isNaN(hours) && hours > 0) {
+        try {
+            const newExpiry = Date.now() + (parseInt(hours) * 60 * 60 * 1000);
+            await updateDoc(doc(db, 'artifacts', appId, 'public', 'data', 'prints', id), {
+                expiresAt: newExpiry
+            });
+            window.showToast(`Auto-delete set to ${hours} hours.`, "success");
+        } catch(e) { console.error(e); }
+    } else if (hours !== null) {
+        window.showToast("Kripya sahi number daalein.", "error");
+    }
+};
+
 function buildCard(j) {
     const isDone = j.status === 'Done';
     const time = new Date(j.createdAt).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'});
     const statusCol = j.status === 'Pending' ? 'bg-yellow-400' : j.status === 'Printing' ? 'bg-blue-600' : 'bg-emerald-500';
     
+    // Calculate remaining time for display
+    let timeLabel = '';
+    if (j.expiresAt) {
+        const remainingHours = Math.round((j.expiresAt - Date.now()) / (1000 * 60 * 60));
+        timeLabel = remainingHours > 0 ? `${remainingHours}h left` : 'Deleting soon';
+    }
+
     return `
     <div class="bg-white rounded-2xl p-5 border border-slate-200 shadow-sm relative overflow-hidden transition-all hover:shadow-md ${isDone ? 'opacity-70' : ''}">
         <div class="absolute left-0 top-0 bottom-0 w-1.5 ${statusCol}"></div>
         <div class="flex justify-between items-start mb-4">
             <div class="bg-slate-900 text-white px-4 py-1.5 rounded-xl text-xl font-black">#${j.token}</div>
-            <div class="text-[10px] font-black text-slate-400 uppercase tracking-widest bg-slate-100 px-2 py-1 rounded-md">${time}</div>
+            <div class="flex flex-col items-end">
+                <div class="text-[10px] font-black text-slate-400 uppercase tracking-widest bg-slate-100 px-2 py-1 rounded-md">${time}</div>
+                ${isDone ? `<div class="text-[9px] font-bold text-red-400 mt-1 flex items-center gap-1"><i data-lucide="clock" class="w-3 h-3"></i> ${timeLabel}</div>` : ''}
+            </div>
         </div>
         
         <div class="flex items-center gap-3 bg-slate-50 p-3 rounded-2xl border border-slate-100 mb-4">
@@ -236,7 +259,7 @@ function buildCard(j) {
             <a href="${j.fileUrl}" target="_blank" class="text-[10px] font-black text-blue-600 bg-blue-100 px-3 py-2 rounded-xl uppercase hover:bg-blue-200 transition-colors">Open</a>
         </div>
 
-        ${j.settings.notes ? `<div class="mb-4 text-[11px] bg-amber-50 p-3 rounded-xl text-amber-700 italic border border-amber-100 flex gap-2"><i data-lucide="info" class="w-3 h-3 shrink-0 mt-0.5"></i> <span>Note: ${j.settings.notes}</span></div>` : ''}
+        ${j.settings.notes ? `<div class="mb-4 text-[11px] bg-amber-50 p-3 rounded-xl text-amber-700 italic border border-amber-100 flex gap-2"><span>Note: ${j.settings.notes}</span></div>` : ''}
 
         <div class="flex gap-2">
             ${!isDone ? 
@@ -245,6 +268,12 @@ function buildCard(j) {
                     `<button onclick="window.markJobAsDone('${j.id}')" class="flex-1 bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-black py-3 rounded-xl shadow-lg active:scale-95">Complete</button>`) 
                 : `<div class="flex-1 text-center py-2 text-emerald-600 font-black text-xs uppercase bg-emerald-50 rounded-xl border border-emerald-100">Printed ✓</div>`
             }
+            
+            <!-- 🟢 TIMER SETTING BUTTON 🟢 -->
+            <button onclick="window.setCustomExpiry('${j.id}')" class="p-3 text-slate-400 hover:text-blue-600 hover:bg-blue-50 rounded-xl transition-colors" title="Set Auto-Delete Timer">
+                <i data-lucide="timer" class="w-5 h-5"></i>
+            </button>
+
             <button onclick="window.askDelete('${j.id}', '${j.filePath}')" class="p-3 text-slate-400 hover:text-red-600 transition-colors"><i data-lucide="trash-2" class="w-5 h-5"></i></button>
         </div>
     </div>`;
@@ -254,7 +283,7 @@ function renderQueue() {
     const qc = document.getElementById('queue-cards');
     if (!qc) return;
     const filtered = allJobs.filter(j => j.status !== 'Done' && (qFilter === 'all' || j.status === qFilter));
-    qc.innerHTML = filtered.length ? filtered.map(j => buildCard(j)).join('') : `<div class="col-span-full py-20 text-center"><p class="text-sm font-bold text-slate-400 uppercase tracking-widest text-xs">Queue is Empty</p></div>`;
+    qc.innerHTML = filtered.length ? filtered.map(j => buildCard(j)).join('') : `<div class="col-span-full py-20 text-center"><i data-lucide="inbox" class="w-12 h-12 text-slate-200 mx-auto mb-2"></i><p class="text-sm font-bold text-slate-400 uppercase tracking-widest text-xs">Queue is Empty</p></div>`;
     if (window.lucide) window.lucide.createIcons();
 }
 
@@ -355,7 +384,7 @@ function loadShopAnalytics() {
         if (tbody) {
             tbody.innerHTML = logs.map(l => `
                 <tr class="hover:bg-slate-50 transition-colors border-b border-slate-50">
-                    <td class="p-5 text-slate-600 font-bold">${l.date}</td>
+                    <td class="p-5 font-bold text-slate-600">${l.date}</td>
                     <td class="p-5 text-center text-blue-600 font-black">${l.totalTokens}</td>
                     <td class="p-5 text-right text-emerald-600 font-black">₹${l.revenue}</td>
                 </tr>
