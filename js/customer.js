@@ -1,15 +1,9 @@
-import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
-import { getAuth, signInAnonymously, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
-import { getFirestore, doc, getDoc, collection, addDoc, runTransaction } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
-import { getStorage, ref, uploadBytesResumable, getDownloadURL } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-storage.js";
+import { auth, db, storage } from './firebase-init.js';
+import { signInAnonymously, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
+import { doc, getDoc, collection, addDoc, runTransaction } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
+import { ref, uploadBytesResumable, getDownloadURL } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-storage.js";
 
 // --- Global Configuration & State ---
-// Environment variables provided by Canvas or local setup
-const firebaseConfig = JSON.parse(__firebase_config);
-const app = initializeApp(firebaseConfig);
-const auth = getAuth(app);
-const db = getFirestore(app);
-const storage = getStorage(app);
 const appId = typeof __app_id !== 'undefined' ? __app_id : 'default-app-id';
 
 let currentShopId = new URLSearchParams(window.location.search).get('shop');
@@ -26,7 +20,8 @@ onAuthStateChanged(auth, async (user) => {
     }
     
     if (!currentShopId) { 
-        document.getElementById('ui-shop-name').textContent = "Invalid Link";
+        const shopNameEl = document.getElementById('ui-shop-name');
+        if (shopNameEl) shopNameEl.textContent = "Invalid Link";
         return; 
     }
 
@@ -41,7 +36,8 @@ onAuthStateChanged(auth, async (user) => {
             const sSnap = await getDoc(sRef);
             if (sSnap.exists()) {
                 const data = sSnap.data();
-                document.getElementById('ui-shop-name').textContent = data.shopName;
+                const shopNameEl = document.getElementById('ui-shop-name');
+                if (shopNameEl) shopNameEl.textContent = data.shopName;
                 // Merge real rates from DB into our local shopRates
                 shopRates = { ...shopRates, ...data };
                 break;
@@ -151,10 +147,6 @@ window.removeFile = (id) => {
 // 3. Token & Submission Logic
 // ==========================================
 
-/**
- * 🟢 ATOMIC DAILY TOKEN GENERATOR 🟢
- * Ensures tokens reset at midnight and handle concurrency
- */
 async function getNextToken() {
     const today = new Date().toISOString().split('T')[0];
     const counterRef = doc(db, 'artifacts', appId, 'public', 'data', 'counters', `${currentShopId}_${today}`);
@@ -172,7 +164,6 @@ async function getNextToken() {
         });
         return token;
     } catch (e) { 
-        // Fallback random token on critical failure
         return Math.floor(Math.random() * 900) + 100; 
     }
 }
@@ -188,7 +179,6 @@ if (btnSubmit) {
             const tokenNum = await getNextToken();
             const uploadedFilesData = [];
 
-            // Parallel file uploads
             for (let fObj of selectedFiles) {
                 const cleanName = fObj.fileName.replace(/[^a-z0-9.]/gi, '_').toLowerCase();
                 const storagePath = `uploads/${currentShopId}/${Date.now()}_${cleanName}`;
@@ -207,7 +197,6 @@ if (btnSubmit) {
                 });
             }
 
-            // Create Master Print Entry in Firestore
             await addDoc(collection(db, 'artifacts', appId, 'public', 'data', 'prints'), {
                 shopId: currentShopId,
                 token: tokenNum,
@@ -219,8 +208,6 @@ if (btnSubmit) {
 
             document.getElementById('final-token').textContent = `#${tokenNum}`;
             document.getElementById('success-modal').classList.remove('hidden');
-            
-            // Local record for recovery
             localStorage.setItem('smartXerox_lastToken', tokenNum);
             
         } catch (e) { 
@@ -233,5 +220,4 @@ if (btnSubmit) {
     };
 }
 
-// Initial icon setup
 if (window.lucide) window.lucide.createIcons();
