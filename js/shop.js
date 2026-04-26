@@ -14,9 +14,7 @@ let allJobs = [];
 let deleteContext = null; 
 let expiryContextId = null; 
 
-// 🟢 Analytics State (Globally managed) 🟢
-let selectedMonth = new Date().toISOString().slice(0, 7); // Format: "YYYY-MM"
-let isMonthViewActive = false; 
+// 🟢 Analytics State (Simplified - Month Picker Removed) 🟢
 let globalAnalyticsData = []; 
 
 // --- Helper: Format Date to DD/MM/YYYY ---
@@ -49,10 +47,8 @@ window.switchView = (name, el) => {
     if (window.lucide) window.lucide.createIcons();
     
     if(name === 'done') renderDone(); 
-    if(name === 'analytics') {
-        setupAnalyticsHeader(); 
-        updateAnalyticsUI();
-    }
+    if(name === 'analytics') updateAnalyticsUI();
+    if(name === 'settings') loadShopPricingUI(); // 🟢 Load pricing into inputs
 };
 
 window.toggleSidebar = () => {
@@ -131,6 +127,7 @@ onAuthStateChanged(auth, async (user) => {
                 generateShopQR();
                 startListeningToQueue();
                 initAnalyticsListener(); 
+                loadShopPricingUI(); // Init rates
             } else {
                 document.getElementById('ui-shop-name').textContent = "Unauthorized Access";
             }
@@ -244,7 +241,7 @@ function buildCard(j) {
         <div class="absolute left-0 top-0 bottom-0 w-1.5 ${statusCol}"></div>
         <div class="flex justify-between items-start mb-4">
             <div class="flex items-center gap-2">
-                <div class="bg-slate-900 text-white px-4 py-1.5 rounded-xl text-xl font-black">#${j.token}</div>
+                <div class="bg-slate-900 text-white px-3 py-1.5 rounded-xl text-xl font-black">#${j.token}</div>
                 ${priceBadge}
             </div>
             <div class="flex flex-col items-end">
@@ -353,61 +350,20 @@ window.markJobAsDone = async (id) => {
 };
 
 // ==========================================
-// 6. ANALYTICS LOGIC (🟢 FIXED MONTH PICKER 🟢)
+// 6. ANALYTICS LOGIC (🟢 MONTH PICKER REMOVED 🟢)
 // ==========================================
 function setupAnalyticsHeader() {
     const container = document.querySelector('#view-analytics div.bg-white.rounded-3xl.border div.p-6.border-b');
     if (!container) return;
 
-    // Fixed UI Structure with Month Selection
+    // Header updated to remove 'Today' and 'Month Picker'
     container.innerHTML = `
         <div class="flex items-center gap-4 w-full">
             <h3 class="font-black text-slate-800 uppercase tracking-widest text-xs flex-1">Daily Revenue Ledger</h3>
-            <div class="flex items-center gap-2 bg-slate-100 p-1.5 rounded-xl border border-slate-200">
-                <button id="btn-analytics-today" class="px-4 py-2 text-[10px] font-black uppercase text-slate-600 hover:bg-white hover:shadow-sm rounded-lg transition-all">Today</button>
-                <div class="h-4 w-px bg-slate-300"></div>
-                <div class="relative flex items-center gap-2 px-3 py-2 bg-white shadow-sm border border-slate-200 rounded-lg overflow-hidden cursor-pointer group min-w-[130px]">
-                    <i data-lucide="calendar" class="w-4 h-4 text-blue-600"></i>
-                    <span id="display-selected-month" class="text-[10px] font-black uppercase text-slate-700">${formatMonthLabel(selectedMonth)}</span>
-                    <input type="month" id="analytics-month-input" class="absolute inset-0 opacity-0 cursor-pointer w-full h-full" value="${selectedMonth}">
-                </div>
-            </div>
         </div>
     `;
 
-    const monthInput = document.getElementById('analytics-month-input');
-    const todayBtn = document.getElementById('btn-analytics-today');
-
-    if (monthInput) {
-        monthInput.addEventListener('input', (e) => {
-            selectedMonth = e.target.value;
-            if(!selectedMonth) return;
-            isMonthViewActive = true; 
-            const displayEl = document.getElementById('display-selected-month');
-            if(displayEl) displayEl.textContent = formatMonthLabel(selectedMonth);
-            updateAnalyticsUI(); 
-            window.showToast(`Showing ${formatMonthLabel(selectedMonth)}`, "info");
-        });
-    }
-
-    if (todayBtn) {
-        todayBtn.onclick = () => {
-            selectedMonth = new Date().toISOString().slice(0, 7);
-            if(monthInput) monthInput.value = selectedMonth;
-            isMonthViewActive = false; 
-            const displayEl = document.getElementById('display-selected-month');
-            if(displayEl) displayEl.textContent = formatMonthLabel(selectedMonth);
-            updateAnalyticsUI();
-            window.showToast("Back to Today's view", "success");
-        };
-    }
-
     if (window.lucide) window.lucide.createIcons();
-}
-
-function formatMonthLabel(val) {
-    const d = new Date(val + "-01");
-    return d.toLocaleDateString(undefined, { month: 'short', year: 'numeric' });
 }
 
 function initAnalyticsListener() {
@@ -425,46 +381,30 @@ function initAnalyticsListener() {
 
 function updateAnalyticsUI() {
     let totalRevAllTime = 0;
-    let filteredMonthRev = 0;
-    let filteredMonthTok = 0;
     let todayRev = 0;
     let todayTok = 0;
     
-    let logs = [];
+    let logs = [...globalAnalyticsData];
     const todayStr = new Date().toISOString().split('T')[0];
 
     globalAnalyticsData.forEach(data => {
         totalRevAllTime += (data.revenue || 0);
-
-        if (data.date.startsWith(selectedMonth)) {
-            filteredMonthRev += (data.revenue || 0);
-            filteredMonthTok += (data.totalTokens || 0);
-            logs.push(data);
-        }
-
         if (data.date === todayStr) {
             todayRev = data.revenue;
             todayTok = data.totalTokens;
         }
     });
 
-    const cardRevTitle = document.querySelector('#view-analytics div.bg-gradient-to-br p');
-    const cardTokTitle = document.querySelector('#view-analytics div.bg-white.p-8.rounded-\\[2rem\\] p');
+    // Update Top Cards
+    const revDisp = document.getElementById('stat-earn-today');
+    const tokDisp = document.getElementById('stat-tokens-today');
+    if(revDisp) revDisp.textContent = todayRev;
+    if(tokDisp) tokDisp.textContent = todayTok;
 
-    if (isMonthViewActive) {
-        if (cardRevTitle) cardRevTitle.textContent = `${formatMonthLabel(selectedMonth).toUpperCase()} REVENUE`;
-        if (cardTokTitle) cardTokTitle.textContent = `${formatMonthLabel(selectedMonth).toUpperCase()} TOKENS`;
-        document.getElementById('stat-earn-today').textContent = filteredMonthRev;
-        document.getElementById('stat-tokens-today').textContent = filteredMonthTok;
-    } else {
-        if (cardRevTitle) cardRevTitle.textContent = "TODAY'S REVENUE";
-        if (cardTokTitle) cardTokTitle.textContent = "TODAY'S TOKENS";
-        document.getElementById('stat-earn-today').textContent = todayRev;
-        document.getElementById('stat-tokens-today').textContent = todayTok;
-    }
+    const totalEarnDisp = document.getElementById('stat-earn-total');
+    if(totalEarnDisp) totalEarnDisp.textContent = totalRevAllTime;
 
-    document.getElementById('stat-earn-total').textContent = totalRevAllTime;
-
+    // Render All Logs (Sorted)
     logs.sort((a, b) => b.date.localeCompare(a.date));
     const tbody = document.getElementById('daily-revenue-table');
     if (tbody) {
@@ -482,7 +422,47 @@ function updateAnalyticsUI() {
 }
 
 // ==========================================
-// 7. PROFESSIONAL MODALS (🟢 FIXED CSS 🟢)
+// 7. SHOP PRICING LOGIC (🟢 NEW SECTION 🟢)
+// ==========================================
+async function loadShopPricingUI() {
+    if(!currentShopId) return;
+    try {
+        const shopRef = doc(db, 'artifacts', appId, 'public', 'data', 'shops', currentShopId);
+        const snap = await getDoc(shopRef);
+        if(snap.exists()){
+            const d = snap.data();
+            const bwInput = document.getElementById('bw-rate-input');
+            const colorInput = document.getElementById('color-rate-input');
+            if(bwInput) bwInput.value = d.bwRate || 2;
+            if(colorInput) colorInput.value = d.colorRate || 10;
+        }
+    } catch(e) { console.error(e); }
+}
+
+window.saveShopRates = async () => {
+    const bw = parseFloat(document.getElementById('bw-rate-input').value);
+    const color = parseFloat(document.getElementById('color-rate-input').value);
+    
+    if(isNaN(bw) || isNaN(color) || bw < 0 || color < 0){
+        window.showToast("Kripya sahi rate bhariye.", "error");
+        return;
+    }
+
+    try {
+        const shopRef = doc(db, 'artifacts', appId, 'public', 'data', 'shops', currentShopId);
+        await updateDoc(shopRef, {
+            bwRate: bw,
+            colorRate: color
+        });
+        window.showToast("Rates update ho gaye!", "success");
+    } catch(e) {
+        console.error(e);
+        window.showToast("Rates save karne mein galti hui.", "error");
+    }
+};
+
+// ==========================================
+// 8. PROFESSIONAL MODALS
 // ==========================================
 window.askDelete = (id, path, isDoneRecord) => {
     deleteContext = { id, path, isDoneRecord };
@@ -534,7 +514,6 @@ window.openExpiryModal = (id) => {
     const modal = document.getElementById('expiry-modal');
     if (modal) {
         modal.classList.remove('hidden');
-        // 🟢 FIX: Container Flex & Widths 🟢
         const container = modal.querySelector('.flex.gap-2.mb-6');
         if(container) {
             container.style.display = "flex";
