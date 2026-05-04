@@ -32,7 +32,6 @@ function formatToDDMMYYYY(dateStr) {
     return `${day}/${month}/${year}`;
 }
 
-// --- Helper: Format Full Time (HH:MM AM/PM) ---
 function formatTime(timestamp) {
     if(!timestamp) return "";
     const date = timestamp.seconds ? new Date(timestamp.seconds * 1000) : new Date(timestamp);
