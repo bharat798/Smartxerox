@@ -32,6 +32,7 @@ function formatToDDMMYYYY(dateStr) {
     return `${day}/${month}/${year}`;
 }
 
+// --- Helper: Format Full Time (HH:MM AM/PM) ---
 function formatTime(timestamp) {
     if(!timestamp) return "";
     const date = timestamp.seconds ? new Date(timestamp.seconds * 1000) : new Date(timestamp);
@@ -267,8 +268,15 @@ function startListeningToQueue() {
             if (data.status === 'Pending' || data.status === 'Printing') pendingCount++;
         });
 
+        // Calculate only today's jobs for "Received Today" stat
+        const todayStr = new Date().toISOString().split('T')[0];
+        const todayJobsCount = allJobs.filter(j => {
+            const d = j.createdAt?.seconds ? new Date(j.createdAt.seconds * 1000) : new Date(j.createdAt);
+            return d.toISOString().split('T')[0] === todayStr;
+        }).length;
+
         if(document.getElementById('s-pending')) document.getElementById('s-pending').textContent = pendingCount;
-        if(document.getElementById('s-total')) document.getElementById('s-total').textContent = allJobs.length;
+        if(document.getElementById('s-total')) document.getElementById('s-total').textContent = todayJobsCount; // Fixed logic
         
         const badge = document.getElementById('q-badge');
         if (badge) {
@@ -421,6 +429,11 @@ function renderDone() {
 
     let html = '';
     for (const date in groups) {
+        html += `<div class="col-span-full mt-10 mb-4 flex items-center gap-6">
+                    <div class="h-[1px] bg-slate-200 flex-1"></div>
+                    <span class="text-[11px] font-black uppercase text-slate-400 tracking-[0.3em] whitespace-nowrap bg-slate-100 px-4 py-1.5 rounded-full border border-slate-200 shadow-sm">${date}</span>
+                    <div class="h-[1px] bg-slate-200 flex-1"></div>
+                 </div>`;
         html += groups[date].map(j => buildCard(j)).join('');
     }
     
