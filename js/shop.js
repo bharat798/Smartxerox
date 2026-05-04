@@ -1,6 +1,6 @@
 import { auth, db, storage } from './firebase-init.js';
 import { onAuthStateChanged, signOut, signInAnonymously, signInWithCustomToken } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-auth.js";
-import { doc, getDoc, setDoc, collection, query, where, onSnapshot, updateDoc, deleteDoc, increment } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js";
+import { doc, getDoc, setDoc, collection, onSnapshot, updateDoc, deleteDoc, increment } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js";
 import { ref, deleteObject } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-storage.js";
 
 // --- Configuration & State ---
@@ -50,7 +50,7 @@ function formatExpiryFull(expiryTimestamp) {
     return `${day}/${month}/${year} ${time}`;
 }
 
-// 🟢 NEW: Clean View Function to prevent URL/Header/Footer in prints 🟢
+// 🟢 Clean View Function to prevent URL/Header/Footer in image prints 🟢
 window.viewFile = (url, fileName) => {
     const isImage = /\.(jpg|jpeg|png|gif|webp)$/i.test(fileName);
     if (isImage) {
@@ -73,7 +73,6 @@ window.viewFile = (url, fileName) => {
         `);
         printWindow.document.close();
     } else {
-        // PDFs already handle clean printing well in browsers
         window.open(url, '_blank');
     }
 };
@@ -88,7 +87,10 @@ window.switchView = (name, el) => {
     const target = document.getElementById('view-' + name);
     if (target) target.classList.add('active');
     
-    if (name !== 'done') historyDateFilter = null; 
+    // Clear history date filter if navigating away from 'done'
+    if (name !== 'done') {
+        historyDateFilter = null; 
+    }
 
     if (el) el.classList.add('active-nav');
     else {
@@ -131,7 +133,6 @@ window.filterQ = (f, btn) => {
 window.filterHistoryByDate = (dateStr) => {
     historyDateFilter = dateStr;
     window.switchView('done'); 
-    window.showToast(`Showing history for ${formatToDDMMYYYY(dateStr)}`, "info");
 };
 
 // ==========================================
@@ -291,9 +292,6 @@ function startListeningToQueue() {
     });
 }
 
-/**
- * 🟢 BUILD CARD UI: Display Time & Scheduled Delete 🟢
- */
 function buildCard(j) {
     const isDone = j.status === 'Done';
     const timeStr = formatTime(j.createdAt);
@@ -327,7 +325,7 @@ function buildCard(j) {
         deletionHtml = `
             <div class="mt-3 flex items-center gap-1.5 text-[10px] font-bold text-red-500 bg-red-50 border border-red-100 px-3 py-1.5 rounded-xl w-fit">
                 <i data-lucide="clock-alert" class="w-3.5 h-3.5"></i>
-                Scheduled Deletion: ${formatExpiryFull(j.expiresAt)}
+                Auto-delete: ${formatExpiryFull(j.expiresAt)}
             </div>
         `;
     }
@@ -384,24 +382,36 @@ function renderQueue() {
     if (window.lucide) window.lucide.createIcons();
 }
 
+/**
+ * 🟢 RENDER DONE: Only show today's history by default, or the selected date from Revenue 🟢
+ */
 function renderDone() {
     const dc = document.getElementById('done-cards');
+    const titleEl = document.getElementById('history-title');
     if (!dc) return;
     
     let filtered = allJobs.filter(j => j.status === 'Done');
-    if (historyDateFilter) {
-        filtered = filtered.filter(j => {
-            const d = j.createdAt?.seconds ? new Date(j.createdAt.seconds * 1000) : new Date(j.createdAt);
-            return d.toISOString().split('T')[0] === historyDateFilter;
-        });
+
+    // Determine active date filter (Default to Today if null)
+    let activeDateFilter = historyDateFilter;
+    if (!activeDateFilter) {
+        activeDateFilter = new Date().toISOString().split('T')[0]; // Format: YYYY-MM-DD for today
+        if (titleEl) titleEl.textContent = "Today's Completed History";
+    } else {
+        if (titleEl) titleEl.textContent = `Completed History for ${formatToDDMMYYYY(activeDateFilter)}`;
     }
 
+    filtered = filtered.filter(j => {
+        const d = j.createdAt?.seconds ? new Date(j.createdAt.seconds * 1000) : new Date(j.createdAt);
+        return d.toISOString().split('T')[0] === activeDateFilter;
+    });
+
     if (!filtered.length) {
-        dc.innerHTML = `<div class="col-span-full py-20 text-center text-slate-400 text-xs font-bold uppercase tracking-widest">No matching history found</div>`;
+        dc.innerHTML = `<div class="col-span-full py-20 text-center text-slate-400 text-xs font-bold uppercase tracking-widest">No history found for this date</div>`;
         return;
     }
 
-    // Grouping by Date
+    // Professional Grouping
     const groups = {};
     filtered.forEach(j => {
         const rawDate = j.createdAt?.seconds ? new Date(j.createdAt.seconds * 1000).toISOString().split('T')[0] : new Date(j.createdAt).toISOString().split('T')[0];
@@ -412,11 +422,6 @@ function renderDone() {
 
     let html = '';
     for (const date in groups) {
-        html += `<div class="col-span-full mt-10 mb-4 flex items-center gap-6">
-                    <div class="h-[1px] bg-slate-200 flex-1"></div>
-                    <span class="text-[11px] font-black uppercase text-slate-400 tracking-[0.3em] whitespace-nowrap bg-slate-100 px-4 py-1.5 rounded-full border border-slate-200 shadow-sm">${date}</span>
-                    <div class="h-[1px] bg-slate-200 flex-1"></div>
-                 </div>`;
         html += groups[date].map(j => buildCard(j)).join('');
     }
     
@@ -518,7 +523,7 @@ window.saveShopRates = async () => {
     const threshold = parseInt(document.getElementById('tier-threshold').value);
     
     if(isNaN(bw) || isNaN(color) || isNaN(threshold)){
-        window.showToast("Please enter valid rate values.", "error");
+        window.showToast("Please enter valid rates.", "error");
         return;
     }
 
@@ -600,7 +605,7 @@ document.getElementById('btn-save-expiry').onclick = async () => {
     let mult = unit === 'hours' ? (60 * 60 * 1000) : (24 * 60 * 60 * 1000);
     try {
         await updateDoc(doc(db, 'artifacts', appId, 'public', 'data', 'prints', expiryContextId), { expiresAt: Date.now() + (val * mult) });
-        window.showToast(`Auto-delete scheduled: ${val} ${unit}.`, "success");
+        window.showToast(`Auto-delete scheduled for ${val} ${unit}.`, "success");
         window.closeExpiryModal();
     } catch(e) { console.error(e); }
 };
