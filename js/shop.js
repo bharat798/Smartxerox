@@ -263,6 +263,33 @@ window.copyShopLink = () => {
     window.showToast('Link copied to clipboard!', 'success');
 };
 
+window.downloadShopQR = () => {
+    const qrContainer = document.getElementById('main-qr-canvas');
+    if (!qrContainer) return;
+    
+    const canvas = qrContainer.querySelector('canvas');
+    const img = qrContainer.querySelector('img');
+    let url = '';
+    
+    if (img && img.src) {
+        url = img.src;
+    } else if (canvas) {
+        url = canvas.toDataURL("image/png");
+    }
+    
+    if (url) {
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = `SmartXerox_QR_${currentShopId || 'Shop'}.png`;
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+        window.showToast("QR Code Downloaded Successfully!", "success");
+    } else {
+        window.showToast("Wait, QR Code is generating...", "error");
+    }
+};
+
 // ==========================================
 // 4. REAL-TIME QUEUE LISTENER
 // ==========================================
@@ -306,7 +333,7 @@ function startListeningToQueue() {
         }).length;
 
         if(document.getElementById('s-pending')) document.getElementById('s-pending').textContent = pendingCount;
-        if(document.getElementById('s-total')) document.getElementById('s-total').textContent = todayJobsCount; // Fixed logic
+        if(document.getElementById('s-total')) document.getElementById('s-total').textContent = todayJobsCount; 
         
         const badge = document.getElementById('q-badge');
         if (badge) {
