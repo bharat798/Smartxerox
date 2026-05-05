@@ -470,7 +470,7 @@ function buildCard(j) {
                     <div class="p-2 bg-white rounded-xl shadow-xs shrink-0"><i data-lucide="file-text" class="w-5 h-5 ${f.settings?.colorMode === 'color' ? 'text-purple-500' : 'text-blue-500'}"></i></div>
                     <div class="flex-1 min-w-0">
                         <p class="text-[13px] font-bold text-slate-700 truncate">${f.fileName}</p>
-                        <p class="text-[10px] font-bold text-slate-400 uppercase tracking-tighter">${f.settings?.colorMode?.toUpperCase() || 'B&W'} • ${f.pages || 1} Pgs • ₹${f.price || 0}</p>
+                        <p class="text-[10px] font-bold text-slate-400 uppercase tracking-tighter">${f.settings?.colorMode?.toUpperCase() || 'B&W'} • ${f.pages || 1} Pgs • ${f.settings?.copies || 1} Copies • ₹${f.price || 0}</p>
                     </div>
                     ${!j.fileDeleted ? `
                         <button onclick="window.viewFile('${f.fileUrl}', '${safeFileName}')" class="text-[10px] font-black text-blue-600 bg-blue-50 px-3 py-2 rounded-lg uppercase hover:bg-blue-600 hover:text-white transition-all">Open</button>
