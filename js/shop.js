@@ -50,7 +50,7 @@ function formatExpiryFull(expiryTimestamp) {
     return `${day}/${month}/${year} ${time}`;
 }
 
-// 🟢 Clean View Function to prevent URL/Header/Footer in image prints 🟢
+// 🟢 Clean View Function to prevent URL/Header/Footer and keep original image size 🟢
 window.viewFile = (url, fileName) => {
     const isImage = /\.(jpg|jpeg|png|gif|webp)$/i.test(fileName);
     if (isImage) {
@@ -61,9 +61,39 @@ window.viewFile = (url, fileName) => {
             <head>
                 <title>${fileName}</title>
                 <style>
-                    @page { size: auto; margin: 0mm; }
-                    body { margin: 0; display: flex; justify-content: center; align-items: center; min-height: 100vh; background: #fff; }
-                    img { max-width: 100%; max-height: 100%; object-fit: contain; page-break-inside: avoid; }
+                    @page { margin: 0; }
+                    body { 
+                        margin: 0; 
+                        display: flex; 
+                        justify-content: center; 
+                        align-items: center; 
+                        min-height: 100vh; 
+                        background: #fff; 
+                    }
+                    img { 
+                        max-width: 100%; 
+                        max-height: 100%; 
+                        width: auto;
+                        height: auto;
+                        object-fit: contain; 
+                    }
+                    @media print {
+                        body { 
+                            display: flex; 
+                            align-items: center;
+                            justify-content: center;
+                            height: 100vh; 
+                            margin: 0;
+                        }
+                        img { 
+                            max-width: 100vw; 
+                            max-height: 98vh; /* Prevents spilling to next page */
+                            width: auto; /* Keeps original size instead of stretching */
+                            height: auto;
+                            object-fit: contain; 
+                            display: inline-block;
+                        }
+                    }
                 </style>
             </head>
             <body>
