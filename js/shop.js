@@ -230,7 +230,7 @@ if (logoutBtn) {
 }
 
 // ==========================================
-// 3. QR CODE LOGIC (PROFESSIONAL DOWNLOAD ADDED)
+// 3. QR CODE LOGIC & PROFESSIONAL DOWNLOADER
 // ==========================================
 function generateShopQR() {
     const con = document.getElementById('main-qr-canvas');
@@ -279,61 +279,103 @@ window.downloadShopQR = () => {
 
     // Create an invisible high-quality canvas for the poster
     const canvas = document.createElement('canvas');
-    canvas.width = 800;
-    canvas.height = 1000;
+    canvas.width = 1080;
+    canvas.height = 1440; // High-Res Poster Aspect Ratio
     const ctx = canvas.getContext('2d');
 
-    // 1. Fill White Background
-    ctx.fillStyle = '#ffffff';
+    // Helper for drawing rounded rectangles smoothly
+    const drawRoundRect = (x, y, w, h, r) => {
+        ctx.beginPath();
+        ctx.moveTo(x + r, y);
+        ctx.lineTo(x + w - r, y);
+        ctx.quadraticCurveTo(x + w, y, x + w, y + r);
+        ctx.lineTo(x + w, y + h - r);
+        ctx.quadraticCurveTo(x + w, y + h, x + w - r, y + h);
+        ctx.lineTo(x + r, y + h);
+        ctx.quadraticCurveTo(x, y + h, x, y + h - r);
+        ctx.lineTo(x, y + r);
+        ctx.quadraticCurveTo(x, y, x + r, y);
+        ctx.closePath();
+    };
+
+    // 1. Fill Background
+    ctx.fillStyle = '#f8fafc'; // slate-50
     ctx.fillRect(0, 0, canvas.width, canvas.height);
 
-    // 2. Draw Premium Blue Header Box
-    ctx.fillStyle = '#2563eb'; // Tailwind blue-600
-    ctx.fillRect(0, 0, canvas.width, 220);
+    // 2. Draw Premium Header Area (Gradient)
+    const gradient = ctx.createLinearGradient(0, 0, canvas.width, 320);
+    gradient.addColorStop(0, '#1e40af'); // blue-900
+    gradient.addColorStop(1, '#3b82f6'); // blue-500
+    ctx.fillStyle = gradient;
+    ctx.fillRect(0, 0, canvas.width, 320);
 
     // 3. Draw Shop Name Text
     ctx.fillStyle = '#ffffff';
-    ctx.font = 'bold 56px Inter, Arial, sans-serif';
+    ctx.font = 'bold 72px Inter, Arial, sans-serif';
     ctx.textAlign = 'center';
-    ctx.fillText(shopName, canvas.width / 2, 130, 700);
-
-    // 4. Draw Subtitle
-    ctx.fillStyle = '#64748b'; // Tailwind slate-500
-    ctx.font = 'bold 32px Inter, Arial, sans-serif';
-    ctx.fillText('SCAN QR CODE TO PRINT', canvas.width / 2, 320);
-
-    // 5. Draw QR Background Box with Rounded Corners (Fallback to standard rect if not supported)
-    ctx.fillStyle = '#f8fafc'; // Tailwind slate-50
-    ctx.strokeStyle = '#e2e8f0'; // Tailwind slate-200
-    ctx.lineWidth = 4;
+    ctx.fillText(shopName.toUpperCase(), canvas.width / 2, 160, 900);
     
-    const boxX = 150, boxY = 380, boxW = 500, boxH = 500, r = 40;
-    ctx.beginPath();
-    ctx.moveTo(boxX + r, boxY);
-    ctx.lineTo(boxX + boxW - r, boxY);
-    ctx.quadraticCurveTo(boxX + boxW, boxY, boxX + boxW, boxY + r);
-    ctx.lineTo(boxX + boxW, boxY + boxH - r);
-    ctx.quadraticCurveTo(boxX + boxW, boxY + boxH, boxX + boxW - r, boxY + boxH);
-    ctx.lineTo(boxX + r, boxY + boxH);
-    ctx.quadraticCurveTo(boxX, boxY + boxH, boxX, boxY + boxH - r);
-    ctx.lineTo(boxX, boxY + r);
-    ctx.quadraticCurveTo(boxX, boxY, boxX + r, boxY);
-    ctx.closePath();
+    // 4. Draw Shop Subtitle
+    ctx.fillStyle = '#bfdbfe'; // blue-200
+    ctx.font = '600 32px Inter, Arial, sans-serif';
+    ctx.fillText('AUTHORIZED PRINT PARTNER', canvas.width / 2, 230);
+
+    // 5. Main CTA (Call to Action)
+    ctx.fillStyle = '#0f172a'; // slate-900
+    ctx.font = '900 64px Inter, Arial, sans-serif';
+    ctx.fillText('SCAN TO PRINT', canvas.width / 2, 460);
+
+    ctx.fillStyle = '#64748b'; // slate-500
+    ctx.font = '500 32px Inter, Arial, sans-serif';
+    ctx.fillText('Upload documents directly from your phone.', canvas.width / 2, 530);
+    ctx.fillText('No app download required!', canvas.width / 2, 580);
+
+    // 6. QR Code Shadow/Box
+    const boxSize = 560;
+    const boxX = (canvas.width - boxSize) / 2;
+    const boxY = 660;
+    const r = 40;
+
+    // Apply Drop Shadow
+    ctx.shadowColor = 'rgba(15, 23, 42, 0.15)';
+    ctx.shadowBlur = 50;
+    ctx.shadowOffsetY = 20;
+    
+    // White Box behind QR
+    ctx.fillStyle = '#ffffff';
+    drawRoundRect(boxX, boxY, boxSize, boxSize, r);
     ctx.fill();
+
+    // Reset shadow for next elements
+    ctx.shadowColor = 'transparent';
+    ctx.shadowBlur = 0;
+    ctx.shadowOffsetY = 0;
+
+    // Decorative inner border for QR
+    ctx.strokeStyle = '#e2e8f0'; // slate-200
+    ctx.lineWidth = 4;
     ctx.stroke();
 
-    // 6. Draw the actual QR Code
-    ctx.drawImage(qrCanvasOrImg, 200, 430, 400, 400);
+    // 7. Draw actual QR Code
+    const qrSize = 480;
+    const qrX = boxX + (boxSize - qrSize) / 2;
+    const qrY = boxY + (boxSize - qrSize) / 2;
+    ctx.drawImage(qrCanvasOrImg, qrX, qrY, qrSize, qrSize);
 
-    // 7. Footer Text - Shop URL
-    ctx.fillStyle = '#3b82f6'; // Tailwind blue-500
-    ctx.font = '24px monospace';
-    ctx.fillText(shopLink, canvas.width / 2, 930, 700);
+    // 8. Footer Link Container
+    const linkY = 1300;
+    ctx.fillStyle = '#dbeafe'; // blue-100
+    drawRoundRect((canvas.width - 800) / 2, linkY - 50, 800, 80, 20);
+    ctx.fill();
 
-    // 8. Footer Text - Branding
-    ctx.fillStyle = '#0f172a'; // Tailwind slate-900
-    ctx.font = 'bold 24px Inter, Arial, sans-serif';
-    ctx.fillText('Powered by Smart Xerox', canvas.width / 2, 970);
+    ctx.fillStyle = '#1d4ed8'; // blue-700
+    ctx.font = 'bold 28px monospace';
+    ctx.fillText(shopLink, canvas.width / 2, linkY + 5);
+
+    // 9. Footer Branding
+    ctx.fillStyle = '#94a3b8'; // slate-400
+    ctx.font = '600 24px Inter, Arial, sans-serif';
+    ctx.fillText('POWERED BY SMART XEROX', canvas.width / 2, 1400);
 
     // Trigger Download
     const url = canvas.toDataURL("image/png");
