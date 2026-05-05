@@ -96,8 +96,14 @@
         <!-- File Cards Container -->
         <div id="file-list" class="space-y-4"></div>
 
+        <!-- NEW: Notes Section -->
+        <div id="notes-section" class="hidden bg-white rounded-3xl p-5 sm:p-6 border border-slate-200 shadow-sm mt-4">
+            <label class="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-2">Customer Name & Instructions</label>
+            <textarea id="order-notes" rows="2" placeholder="Write your name or any special instructions for the shopkeeper..." class="w-full bg-slate-50 border border-slate-200 rounded-2xl px-5 py-4 text-sm font-bold text-slate-800 outline-none focus:ring-2 focus:ring-blue-500 transition-all shadow-inner"></textarea>
+        </div>
+
         <!-- Spacer for mobile to prevent overlapping by the sticky bottom bar -->
-        <div class="h-32 sm:h-24 w-full block"></div>
+        <div class="h-40 sm:h-24 w-full block"></div>
 
         <!-- Sticky Summary Bar -->
         <div id="summary-bar" class="fixed bottom-0 left-0 right-0 summary-glass text-white p-5 sm:p-8 shadow-2xl z-40 border-t border-white/5 hidden">
@@ -275,7 +281,7 @@
                     fileData: file,
                     fileName: file.name,
                     pages: pages,
-                    settings: { colorMode: 'bw' },
+                    settings: { colorMode: 'bw', copies: 1 },
                     price: 0
                 });
             }
@@ -283,14 +289,14 @@
             fileInput.value = '';
         }
 
-        // TIERED PRICING ENGINE
-        function calculatePrice(pages, mode) {
+        // TIERED PRICING ENGINE WITH COPIES
+        function calculatePrice(pages, mode, copies = 1) {
             const threshold = shopRates.tierThreshold;
             const isStandard = pages <= threshold;
             let rate = mode === 'bw' 
                 ? (isStandard ? shopRates.bwRate : shopRates.bwRateBulk)
                 : (isStandard ? shopRates.colorRate : shopRates.colorRateBulk);
-            return pages * rate;
+            return (pages * rate) * copies;
         }
 
         function renderFileList() {
@@ -299,7 +305,7 @@
             let totalOrderPrice = 0;
 
             selectedFiles.forEach((f) => {
-                f.price = calculatePrice(f.pages, f.settings.colorMode);
+                f.price = calculatePrice(f.pages, f.settings.colorMode, f.settings.copies);
                 totalOrderPrice += f.price;
 
                 const card = document.createElement('div');
@@ -316,23 +322,39 @@
                              <p class="text-xs sm:text-sm font-black text-emerald-600">₹${f.price.toFixed(2)}</p>
                         </div>
                     </div>
-                    <div class="flex items-center justify-between md:justify-end gap-2 shrink-0 pt-2 md:pt-0">
-                        <div class="flex bg-slate-100 p-1 sm:p-1.5 rounded-xl sm:rounded-2xl border border-slate-200 shadow-inner flex-1 md:flex-none justify-center">
-                            <button onclick="window.updateFileMode('${f.id}', 'bw')" class="flex-1 md:flex-none px-4 sm:px-5 py-2 sm:py-2.5 rounded-lg sm:rounded-xl text-[9px] sm:text-[10px] font-black uppercase transition-all ${f.settings.colorMode === 'bw' ? 'bg-white shadow-sm text-slate-900' : 'text-slate-400'}">B&W</button>
-                            <button onclick="window.updateFileMode('${f.id}', 'color')" class="flex-1 md:flex-none px-4 sm:px-5 py-2 sm:py-2.5 rounded-lg sm:rounded-xl text-[9px] sm:text-[10px] font-black uppercase transition-all ${f.settings.colorMode === 'color' ? 'bg-purple-600 text-white shadow-sm' : 'text-slate-400'}">Color</button>
+                    <div class="flex flex-col items-end gap-2 shrink-0 pt-2 md:pt-0 w-full md:w-auto">
+                        <div class="flex items-center justify-between w-full md:w-auto gap-2">
+                            <div class="flex bg-slate-100 p-1 sm:p-1.5 rounded-xl sm:rounded-2xl border border-slate-200 shadow-inner flex-1 md:flex-none justify-center">
+                                <button onclick="window.updateFileMode('${f.id}', 'bw')" class="flex-1 md:flex-none px-3 sm:px-5 py-2 sm:py-2.5 rounded-lg sm:rounded-xl text-[9px] sm:text-[10px] font-black uppercase transition-all ${f.settings.colorMode === 'bw' ? 'bg-white shadow-sm text-slate-900' : 'text-slate-400'}">B&W</button>
+                                <button onclick="window.updateFileMode('${f.id}', 'color')" class="flex-1 md:flex-none px-3 sm:px-5 py-2 sm:py-2.5 rounded-lg sm:rounded-xl text-[9px] sm:text-[10px] font-black uppercase transition-all ${f.settings.colorMode === 'color' ? 'bg-purple-600 text-white shadow-sm' : 'text-slate-400'}">Color</button>
+                            </div>
+                            
+                            <!-- Copies Control -->
+                            <div class="flex items-center bg-slate-100 rounded-xl sm:rounded-2xl border border-slate-200 shadow-inner p-1 sm:p-1.5 shrink-0">
+                                <button onclick="window.updateCopies('${f.id}', -1)" class="w-8 h-8 sm:h-9 flex items-center justify-center text-slate-500 hover:text-slate-800 transition-colors bg-white rounded-lg sm:rounded-xl shadow-sm"><i data-lucide="minus" class="w-3 h-3 sm:w-4 sm:h-4"></i></button>
+                                <span class="w-6 sm:w-8 text-center text-xs sm:text-sm font-black text-slate-800">${f.settings.copies}</span>
+                                <button onclick="window.updateCopies('${f.id}', 1)" class="w-8 h-8 sm:h-9 flex items-center justify-center text-slate-500 hover:text-slate-800 transition-colors bg-white rounded-lg sm:rounded-xl shadow-sm"><i data-lucide="plus" class="w-3 h-3 sm:w-4 sm:h-4"></i></button>
+                            </div>
+                            
+                            <button onclick="window.removeFile('${f.id}')" class="p-2 sm:p-3 text-slate-300 hover:text-red-500 hover:bg-red-50 rounded-xl sm:rounded-2xl transition-all shrink-0"><i data-lucide="trash-2" class="w-4 h-4 sm:w-5 sm:h-5"></i></button>
                         </div>
-                        <button onclick="window.removeFile('${f.id}')" class="p-2 sm:p-3 text-slate-300 hover:text-red-500 hover:bg-red-50 rounded-xl sm:rounded-2xl transition-all shrink-0"><i data-lucide="trash-2" class="w-4 h-4 sm:w-5 sm:h-5"></i></button>
                     </div>
                 `;
                 container.appendChild(card);
             });
 
-            document.getElementById('summary-bar').classList.toggle('hidden', selectedFiles.length === 0);
+            const hasFiles = selectedFiles.length > 0;
+            document.getElementById('summary-bar').classList.toggle('hidden', !hasFiles);
+            
+            // Show notes section only if files are uploaded
+            const notesSec = document.getElementById('notes-section');
+            if(notesSec) notesSec.classList.toggle('hidden', !hasFiles);
+
             document.getElementById('order-total').textContent = totalOrderPrice.toFixed(2);
             lucide.createIcons();
             
             // Auto scroll to bottom if needed on mobile to show the summary bar pops up
-            if (selectedFiles.length === 1 && window.innerWidth < 640) {
+            if (hasFiles && window.innerWidth < 640) {
                  window.scrollTo({ top: document.body.scrollHeight, behavior: 'smooth' });
             }
         }
@@ -340,6 +362,15 @@
         window.updateFileMode = (id, mode) => {
             const f = selectedFiles.find(x => x.id === id);
             if (f) { f.settings.colorMode = mode; renderFileList(); }
+        };
+
+        window.updateCopies = (id, delta) => {
+            const f = selectedFiles.find(x => x.id === id);
+            if (f) {
+                f.settings.copies = (f.settings.copies || 1) + delta;
+                if(f.settings.copies < 1) f.settings.copies = 1;
+                renderFileList();
+            }
         };
 
         window.removeFile = (id) => {
@@ -401,7 +432,8 @@
                     shopId: currentShopId, customerId: user.uid,
                     token: tokenNum, files: uploadedFilesData,
                     billEstimate: document.getElementById('order-total').textContent,
-                    status: "Pending", notes: "",
+                    status: "Pending", 
+                    notes: document.getElementById('order-notes') ? document.getElementById('order-notes').value.trim() : "",
                     createdAt: serverTimestamp(),
                     expiresAt: Date.now() + (globalSettings.autoDeleteHours * 3600000)
                 };
