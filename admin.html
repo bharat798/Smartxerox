@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Smart Xerox | Shop Owner Dashboard</title>
+    <title>Smart Xerox | Super Admin Panel</title>
     <!-- Tailwind CSS -->
     <script src="https://cdn.tailwindcss.com"></script>
     <!-- Lucide Icons -->
@@ -17,21 +17,16 @@
         ::-webkit-scrollbar { width: 6px; height: 6px; }
         ::-webkit-scrollbar-track { background: transparent; }
         ::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 10px; }
-        ::-webkit-scrollbar-thumb:hover { background: #94a3b8; }
 
         @keyframes slideIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
-        .animate-slide-in { animation: slideIn 0.3s ease-out forwards; }
-
-        @keyframes modalBounce { from { opacity: 0; transform: scale(0.95); } to { opacity: 1; transform: scale(1); } }
-        .modal-animate { animation: modalBounce 0.2s ease-out forwards; }
-
         .view-section { display: none; }
         .view-section.active { display: block; animation: slideIn 0.3s ease-out; }
         
-        .active-nav { background-color: rgba(37, 99, 235, 0.1) !important; color: #3b82f6 !important; border-left: 4px solid #3b82f6 !important; }
+        .active-nav { background-color: rgba(37, 99, 235, 0.1) !important; color: #3b82f6 !important; border-right: 4px solid #3b82f6 !important; }
         .nav-item { transition: all 0.2s ease; }
-
-        select { appearance: none; background-image: url("data:image/svg+xml,%3csvg xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 20 20'%3e%3cpath stroke='%236b7280' stroke-linecap='round' stroke-linejoin='round' stroke-width='1.5' d='M6 8l4 4 4-4'/%3e%3c/svg%3e"); background-position: right 0.5rem center; background-repeat: no-repeat; background-size: 1.5em 1.5em; }
+        
+        .modal-animate { animation: bounceIn 0.3s cubic-bezier(0.68, -0.55, 0.27, 1.55) forwards; }
+        @keyframes bounceIn { from { opacity: 0; transform: scale(0.9); } to { opacity: 1; transform: scale(1); } }
     </style>
 </head>
 <body class="text-slate-800 h-screen flex overflow-hidden">
@@ -40,214 +35,538 @@
     <div id="mobile-overlay" class="fixed inset-0 bg-slate-900/50 z-20 hidden lg:hidden" onclick="window.toggleSidebar()"></div>
 
     <!-- Sidebar Navigation -->
-    <aside id="sidebar" class="bg-[#0f172a] text-slate-300 w-64 shrink-0 flex flex-col h-full fixed lg:relative z-30 transition-transform duration-300 -translate-x-full lg:translate-x-0 shadow-2xl">
-        <div class="h-16 flex items-center px-6 border-b border-white/10 text-white font-bold text-lg gap-2 shrink-0">
-            <div class="bg-blue-600 p-1.5 rounded-lg"><i data-lucide="printer" class="w-5 h-5 text-white"></i></div>
-            Shop<span class="text-blue-400">Panel</span>
+    <aside id="sidebar" class="bg-white border-r border-slate-200 w-64 shrink-0 flex flex-col h-full fixed lg:relative z-30 transition-transform duration-300 -translate-x-full lg:translate-x-0 shadow-2xl lg:shadow-none">
+        <div class="h-16 flex items-center px-6 border-b border-slate-100 gap-2 shrink-0">
+            <div class="bg-slate-900 p-1.5 rounded-lg"><i data-lucide="shield-check" class="w-5 h-5 text-white"></i></div>
+            <span class="font-black text-lg tracking-tight italic">Admin<span class="text-blue-600">Console</span></span>
             <button class="lg:hidden ml-auto text-slate-400" onclick="window.toggleSidebar()"><i data-lucide="x" class="w-5 h-5"></i></button>
         </div>
 
         <nav class="flex-1 py-6 overflow-y-auto">
-            <div class="px-4 mb-4 text-[10px] font-bold text-slate-500 uppercase tracking-widest">Main Menu</div>
-            <ul class="space-y-1 px-3">
-                <li><button id="nav-queue" onclick="window.switchView('queue', this)" class="nav-item w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium hover:bg-white/5 active-nav"><i data-lucide="list-todo" class="w-5 h-5"></i> Print Queue <span id="q-badge" class="ml-auto bg-blue-500 text-white text-[10px] font-bold px-2 py-0.5 rounded-full hidden">0</span></button></li>
-                <li><button id="nav-done" onclick="window.switchView('done', this)" class="nav-item w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium hover:bg-white/5"><i data-lucide="check-circle" class="w-5 h-5"></i> Completed Jobs</button></li>
-                <li><button id="nav-qr" onclick="window.switchView('qr', this)" class="nav-item w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium hover:bg-white/5"><i data-lucide="qr-code" class="w-5 h-5"></i> Shop QR Code</button></li>
-                <li><button id="nav-analytics" onclick="window.switchView('analytics', this)" class="nav-item w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium hover:bg-white/5"><i data-lucide="bar-chart-2" class="w-5 h-5"></i> Revenue Analytics</button></li>
-                <li><button id="nav-settings" onclick="window.switchView('settings', this)" class="nav-item w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium hover:bg-white/5"><i data-lucide="settings" class="w-5 h-5"></i> Shop Settings</button></li>
+            <div class="px-6 mb-4 text-[10px] font-black text-slate-400 uppercase tracking-widest">Main Menu</div>
+            <ul class="space-y-2 px-3">
+                <li><button onclick="window.switchView('dashboard', this)" class="nav-item active-nav w-full flex items-center gap-3 px-4 py-3 rounded-xl text-sm font-bold text-slate-600 hover:bg-slate-50"><i data-lucide="layout-dashboard" class="w-5 h-5"></i> Dashboard</button></li>
+                <li><button onclick="window.switchView('directory', this)" class="nav-item w-full flex items-center gap-3 px-4 py-3 rounded-xl text-sm font-bold text-slate-600 hover:bg-slate-50"><i data-lucide="store" class="w-5 h-5"></i> Shop Directory</button></li>
+                <li><button onclick="window.switchView('register', this)" class="nav-item w-full flex items-center gap-3 px-4 py-3 rounded-xl text-sm font-bold text-slate-600 hover:bg-slate-50"><i data-lucide="user-plus" class="w-5 h-5"></i> Register Partner</button></li>
             </ul>
         </nav>
 
-        <div class="p-4 border-t border-white/10 bg-slate-900/50">
+        <div class="p-4 border-t border-slate-100 bg-slate-50">
             <div class="flex items-center gap-3 mb-4 px-2">
-                <div class="w-10 h-10 rounded-full bg-blue-500 flex items-center justify-center text-white font-bold shrink-0"><i data-lucide="user" class="w-5 h-5"></i></div>
+                <div class="w-10 h-10 rounded-full bg-slate-900 flex items-center justify-center text-white font-bold shrink-0"><i data-lucide="shield" class="w-5 h-5"></i></div>
                 <div class="flex-1 min-w-0">
-                    <p class="text-sm font-bold text-white truncate" id="shop-owner-name">Loading...</p>
-                    <p id="shop-user-email" class="text-[10px] text-slate-400 truncate">Connecting...</p>
+                    <p class="text-sm font-black text-slate-800 truncate">Super Admin</p>
+                    <p class="text-[10px] text-emerald-600 font-bold uppercase tracking-widest flex items-center gap-1"><span class="w-1.5 h-1.5 bg-emerald-500 rounded-full"></span> System Live</p>
                 </div>
             </div>
-            <button id="btn-logout" class="w-full py-2.5 bg-red-500/10 hover:bg-red-500/20 text-red-400 text-xs font-bold rounded-xl border border-red-500/20 transition-all flex items-center justify-center gap-2">
+            <button id="btn-logout-header" class="w-full py-2.5 bg-white hover:bg-red-50 text-red-500 text-xs font-black uppercase tracking-widest rounded-xl border border-slate-200 hover:border-red-200 transition-all flex items-center justify-center gap-2">
                 <i data-lucide="log-out" class="w-4 h-4"></i> Sign Out
             </button>
         </div>
     </aside>
 
-    <main class="flex-1 flex flex-col h-full overflow-hidden">
+    <!-- Main Content Area -->
+    <main class="flex-1 flex flex-col h-full overflow-hidden bg-slate-50">
+        
         <header class="h-16 bg-white border-b border-slate-200 flex items-center justify-between px-4 lg:px-8 shrink-0 z-10 shadow-sm">
             <div class="flex items-center gap-3">
                 <button class="lg:hidden p-2 text-slate-500" onclick="window.toggleSidebar()"><i data-lucide="menu" class="w-6 h-6"></i></button>
-                <div class="flex flex-col">
-                    <h1 class="text-base font-bold text-slate-800 leading-none" id="ui-shop-name">Connecting...</h1>
-                    <span class="text-[10px] font-bold text-slate-400 uppercase tracking-tighter" id="ui-shop-id">Please wait...</span>
-                </div>
-            </div>
-            <div class="flex items-center gap-4">
-                <div class="flex items-center gap-2 bg-emerald-50 text-emerald-700 px-3 py-1.5 rounded-full border border-emerald-100 text-[10px] font-black uppercase tracking-wider">
-                    <span class="relative flex h-2 w-2"><span class="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span><span class="relative inline-flex rounded-full h-2 w-2 bg-emerald-500"></span></span> System Live
-                </div>
-                <button id="sound-btn" onclick="window.toggleSound()" class="p-2 text-slate-400 hover:text-blue-600 transition-colors bg-slate-50 rounded-lg border border-slate-100"><i data-lucide="bell" class="w-5 h-5 text-blue-500"></i></button>
+                <h1 id="header-title" class="text-base font-black text-slate-800 uppercase tracking-widest">Global Dashboard</h1>
             </div>
         </header>
 
-        <div class="flex-1 overflow-y-auto p-4 lg:p-8 bg-slate-50">
-            <!-- VIEW: QUEUE -->
-            <div id="view-queue" class="view-section active">
-                <div class="grid grid-cols-2 lg:grid-cols-3 gap-4 mb-8">
-                    <div class="bg-white p-5 rounded-2xl shadow-sm border border-slate-200 flex items-center gap-4">
-                        <div class="w-12 h-12 bg-amber-50 text-amber-600 rounded-xl flex items-center justify-center shrink-0 border border-amber-100"><i data-lucide="clock" class="w-6 h-6"></i></div>
-                        <div><p class="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Active Prints</p><h3 class="text-3xl font-black text-slate-800" id="s-pending">0</h3></div>
+        <!-- Loading State -->
+        <div id="loading-state" class="flex-1 flex flex-col items-center justify-center">
+            <i data-lucide="loader-2" class="w-10 h-10 text-blue-600 animate-spin mb-4"></i>
+            <h2 class="text-sm font-bold text-slate-500 uppercase tracking-widest">Syncing Data...</h2>
+        </div>
+
+        <div id="app-main" class="hidden flex-1 overflow-y-auto p-4 lg:p-8">
+            
+            <!-- VIEW: DASHBOARD -->
+            <div id="view-dashboard" class="view-section active max-w-6xl mx-auto">
+                <div class="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
+                    <div class="bg-white p-8 rounded-[2rem] border border-slate-200 shadow-sm flex items-center gap-6">
+                        <div class="w-16 h-16 bg-blue-50 text-blue-600 rounded-2xl flex items-center justify-center"><i data-lucide="store" class="w-8 h-8"></i></div>
+                        <div>
+                            <p class="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1">Total Active Shops</p>
+                            <h3 class="text-4xl font-black text-slate-900" id="stat-shops">0</h3>
+                        </div>
                     </div>
-                    <div class="bg-white p-5 rounded-2xl shadow-sm border border-slate-200 flex items-center gap-4">
-                        <div class="w-12 h-12 bg-blue-50 text-blue-600 rounded-xl flex items-center justify-center shrink-0 border border-blue-100"><i data-lucide="layers" class="w-6 h-6"></i></div>
-                        <div><p class="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Received Today</p><h3 class="text-3xl font-black text-slate-800" id="s-total">0</h3></div>
+                    <div class="bg-white p-8 rounded-[2rem] border border-slate-200 shadow-sm flex items-center gap-6">
+                        <div class="w-16 h-16 bg-emerald-50 text-emerald-600 rounded-2xl flex items-center justify-center"><i data-lucide="printer" class="w-8 h-8"></i></div>
+                        <div>
+                            <p class="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1">Total Lifetime Prints</p>
+                            <h3 class="text-4xl font-black text-slate-900" id="stat-prints">0</h3>
+                        </div>
+                    </div>
+                    <div class="bg-gradient-to-br from-blue-600 to-indigo-700 p-8 rounded-[2rem] text-white shadow-xl shadow-blue-200 flex items-center gap-6">
+                        <div class="w-16 h-16 bg-white/20 rounded-2xl flex items-center justify-center"><i data-lucide="indian-rupee" class="w-8 h-8 text-white"></i></div>
+                        <div>
+                            <p class="text-[10px] font-black text-blue-200 uppercase tracking-widest mb-1">Total System Revenue</p>
+                            <h3 class="text-4xl font-black">₹<span id="stat-revenue">0</span></h3>
+                        </div>
                     </div>
                 </div>
-                <div id="queue-cards" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6"></div>
             </div>
 
-            <!-- VIEW: ANALYTICS -->
-            <div id="view-analytics" class="view-section">
-                <div class="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
-                    <div class="bg-gradient-to-br from-emerald-500 to-emerald-600 p-8 rounded-[2rem] text-white shadow-xl shadow-emerald-200 relative overflow-hidden">
-                        <i data-lucide="indian-rupee" class="absolute -right-6 -bottom-6 w-32 h-32 opacity-20 rotate-12"></i>
-                        <p class="text-xs font-black uppercase mb-1">Today's Revenue</p>
-                        <h3 class="text-5xl font-black">₹<span id="stat-earn-today">0</span></h3>
+            <!-- VIEW: DIRECTORY -->
+            <div id="view-directory" class="view-section max-w-6xl mx-auto">
+                <div class="bg-white rounded-[2rem] border border-slate-200 shadow-sm overflow-hidden">
+                    <div class="px-8 py-6 border-b border-slate-100 flex items-center justify-between bg-slate-50/50">
+                        <h2 class="font-black text-slate-800 text-sm uppercase tracking-widest">Shop Directory</h2>
                     </div>
-                    <div class="bg-white p-8 rounded-[2rem] border border-slate-200 shadow-sm">
-                        <p class="text-xs font-black text-slate-400 uppercase mb-1">Today's Total Tokens</p>
-                        <h3 class="text-5xl font-black text-blue-600" id="stat-tokens-today">0</h3>
-                    </div>
-                    <div class="bg-white p-8 rounded-[2rem] border border-slate-200 shadow-sm">
-                        <p class="text-xs font-black text-slate-400 uppercase mb-1">Lifetime Revenue</p>
-                        <h3 class="text-5xl font-black text-slate-800">₹<span id="stat-earn-total">0</span></h3>
-                    </div>
-                </div>
-                <div class="bg-white rounded-3xl border border-slate-200 overflow-hidden shadow-sm">
-                    <div class="p-6 border-b border-slate-100 font-black text-xs uppercase tracking-widest">Daily Revenue History</div>
                     <div class="overflow-x-auto">
                         <table class="w-full text-left">
-                            <thead class="bg-slate-50 text-[10px] font-black uppercase text-slate-400 border-b border-slate-100">
-                                <tr><th class="p-5">Date (DD/MM/YYYY)</th><th class="p-5 text-center">Tokens Generated</th><th class="p-5 text-right">Earnings (₹)</th></tr>
+                            <thead class="bg-white text-[10px] font-black uppercase text-slate-400 border-b border-slate-100">
+                                <tr>
+                                    <th class="px-8 py-5">Shop Information</th>
+                                    <th class="px-8 py-5">Shop ID</th>
+                                    <th class="px-8 py-5 text-right">Actions</th>
+                                </tr>
                             </thead>
-                            <tbody id="daily-revenue-table" class="text-sm divide-y divide-slate-50 font-medium"></tbody>
+                            <tbody id="shop-list-body" class="text-sm divide-y divide-slate-100 font-medium bg-white">
+                                <!-- Populated via JS -->
+                            </tbody>
                         </table>
                     </div>
                 </div>
             </div>
 
-            <!-- VIEW: DONE -->
-            <div id="view-done" class="view-section">
-                <h2 class="text-xl font-black mb-6 flex items-center gap-2 text-slate-800">
-                    <i data-lucide="history" class="w-6 h-6 text-emerald-600"></i> 
-                    <span id="history-title">Today's Completed History</span>
-                </h2>
-                <div id="done-cards" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6"></div>
-            </div>
+            <!-- VIEW: SHOP DETAIL (ANALYTICS) -->
+            <div id="view-shop-detail" class="view-section max-w-5xl mx-auto">
+                <button onclick="window.switchView('directory')" class="mb-6 flex items-center gap-2 text-sm font-bold text-slate-500 hover:text-blue-600 transition-colors">
+                    <i data-lucide="arrow-left" class="w-4 h-4"></i> Back to Directory
+                </button>
+                
+                <div class="bg-white rounded-[2rem] p-8 border border-slate-200 shadow-sm mb-6 flex justify-between items-center">
+                    <div>
+                        <h2 class="text-3xl font-black text-slate-900 mb-1" id="detail-shop-name">Shop Name</h2>
+                        <p class="text-xs font-bold text-slate-400 uppercase tracking-widest" id="detail-shop-id">ID: ---</p>
+                    </div>
+                    <div class="text-right">
+                        <p class="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1">Lifetime Revenue</p>
+                        <h3 class="text-3xl font-black text-emerald-600">₹<span id="detail-lifetime-rev">0</span></h3>
+                    </div>
+                </div>
 
-            <!-- VIEW: SETTINGS (TIERED PRICING) -->
-            <div id="view-settings" class="view-section">
-                <div class="max-w-2xl mx-auto">
-                    <h2 class="text-2xl font-black text-slate-800 mb-2">Shop Pricing & Tiers</h2>
-                    <p class="text-sm text-slate-500 mb-8">Set your print rates and tiers here. Bulk rates will apply automatically based on the page count.</p>
-                    
-                    <div class="bg-white rounded-3xl border border-slate-200 shadow-sm p-8 space-y-8">
-                        <div class="bg-blue-50 p-6 rounded-2xl border border-blue-100 flex items-center justify-between gap-4">
-                            <div class="flex-1">
-                                <h4 class="font-bold text-blue-900 text-sm">Bulk Tier Threshold</h4>
-                                <p class="text-[11px] text-blue-700">After how many pages should the bulk rate apply?</p>
-                            </div>
-                            <div class="w-32">
-                                <input type="number" id="tier-threshold" value="3" class="w-full bg-white border border-blue-200 rounded-xl px-4 py-3 font-bold text-center outline-none">
-                            </div>
-                        </div>
-
-                        <div class="space-y-4">
-                            <h4 class="font-black text-[10px] text-slate-400 uppercase tracking-widest">B&W Rates (Per Page)</h4>
-                            <div class="grid grid-cols-2 gap-4">
-                                <div>
-                                    <label class="block text-[10px] font-bold text-slate-500 mb-1.5 uppercase tracking-tighter">Normal Rate (₹)</label>
-                                    <input type="number" step="0.01" id="bw-rate-input" class="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-3.5 font-bold outline-none">
-                                </div>
-                                <div>
-                                    <label class="block text-[10px] font-bold text-slate-500 mb-1.5 uppercase tracking-tighter">Bulk Rate (₹)</label>
-                                    <input type="number" step="0.01" id="bw-bulk-input" class="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-3.5 font-bold outline-none">
-                                </div>
-                            </div>
-                        </div>
-
-                        <div class="space-y-4">
-                            <h4 class="font-black text-[10px] text-slate-400 uppercase tracking-widest">Color Rates (Per Page)</h4>
-                            <div class="grid grid-cols-2 gap-4">
-                                <div>
-                                    <label class="block text-[10px] font-bold text-slate-500 mb-1.5 uppercase tracking-tighter">Normal Rate (₹)</label>
-                                    <input type="number" step="0.01" id="color-rate-input" class="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-3.5 font-bold outline-none">
-                                </div>
-                                <div>
-                                    <label class="block text-[10px] font-bold text-slate-500 mb-1.5 uppercase tracking-tighter">Bulk Rate (₹)</label>
-                                    <input type="number" step="0.01" id="color-bulk-input" class="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-3.5 font-bold outline-none">
-                                </div>
-                            </div>
-                        </div>
-
-                        <button onclick="window.saveShopRates()" class="w-full bg-blue-600 text-white font-black py-4 rounded-2xl shadow-lg shadow-blue-200 active:scale-95 transition-all flex items-center justify-center gap-2">
-                            <i data-lucide="save" class="w-5 h-5"></i> Save All Rates
-                        </button>
+                <div class="bg-white rounded-[2rem] border border-slate-200 shadow-sm overflow-hidden">
+                    <div class="p-6 border-b border-slate-100 font-black text-xs uppercase tracking-widest bg-slate-50/50">Day-by-Day Earning History</div>
+                    <div class="overflow-x-auto">
+                        <table class="w-full text-left">
+                            <thead class="bg-white text-[10px] font-black uppercase text-slate-400 border-b border-slate-100">
+                                <tr>
+                                    <th class="px-8 py-4">Date</th>
+                                    <th class="px-8 py-4 text-center">Total Prints</th>
+                                    <th class="px-8 py-4 text-right">Revenue Earned</th>
+                                </tr>
+                            </thead>
+                            <tbody id="detail-history-body" class="text-sm divide-y divide-slate-100 font-medium">
+                                <!-- Populated via JS -->
+                            </tbody>
+                        </table>
                     </div>
                 </div>
             </div>
 
-            <!-- VIEW: QR -->
-            <div id="view-qr" class="view-section">
-                <div class="max-w-md mx-auto mt-10 bg-white p-12 rounded-[3rem] border border-slate-200 text-center shadow-2xl">
-                    <h2 class="text-2xl font-black text-slate-800 mb-2">Shop Access QR</h2>
-                    <div class="bg-white p-6 inline-block border-4 border-slate-50 rounded-[2.5rem] my-8 shadow-inner"><div id="main-qr-canvas" style="width: 180px; height: 180px;"></div></div>
-                    <p id="qr-link-text" class="text-[10px] font-mono text-slate-400 bg-slate-50 p-4 rounded-2xl mb-8 truncate"></p>
-                    <button onclick="window.copyShopLink()" class="w-full bg-blue-600 text-white font-black py-4 rounded-2xl shadow-lg active:scale-95 transition-all flex items-center justify-center gap-2"><i data-lucide="copy" class="w-4 h-4"></i> Copy Shop Link</button>
+            <!-- VIEW: REGISTER PARTNER -->
+            <div id="view-register" class="view-section max-w-3xl mx-auto">
+                <div class="bg-white rounded-[2.5rem] border border-slate-200 shadow-sm p-8 lg:p-10">
+                    <div class="mb-8 border-b border-slate-100 pb-6">
+                        <h2 class="text-2xl font-black text-slate-800 mb-2">Add New Shop</h2>
+                        <p class="text-sm text-slate-500 font-medium">Enter shop details to generate credentials and a live QR code instantly.</p>
+                    </div>
+
+                    <form id="shop-form" class="space-y-6">
+                        <!-- Shop Information -->
+                        <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                            <div class="md:col-span-2">
+                                <label class="block text-[10px] font-black text-slate-400 uppercase mb-2 tracking-widest">Shop Name</label>
+                                <input type="text" id="m-shop-name" required placeholder="e.g. Swastik Print Hub" class="w-full bg-slate-50 border border-slate-200 rounded-2xl px-5 py-4 font-bold outline-none focus:ring-2 focus:ring-blue-500">
+                            </div>
+                            <div>
+                                <label class="block text-[10px] font-black text-slate-400 uppercase mb-2 tracking-widest">Owner Full Name</label>
+                                <input type="text" id="m-owner-name" required placeholder="Owner Name" class="w-full bg-slate-50 border border-slate-200 rounded-2xl px-5 py-4 font-bold outline-none focus:ring-2 focus:ring-blue-500">
+                            </div>
+                            <div>
+                                <label class="block text-[10px] font-black text-slate-400 uppercase mb-2 tracking-widest">Unique Shop ID</label>
+                                <input type="text" id="m-shop-id" required placeholder="e.g. swastik-101" class="w-full bg-slate-50 border border-slate-200 rounded-2xl px-5 py-4 font-bold outline-none focus:ring-2 focus:ring-blue-500">
+                            </div>
+                            <div>
+                                <label class="block text-[10px] font-black text-slate-400 uppercase mb-2 tracking-widest">Phone Number</label>
+                                <input type="tel" id="m-phone" required placeholder="Mobile Number" class="w-full bg-slate-50 border border-slate-200 rounded-2xl px-5 py-4 font-bold outline-none focus:ring-2 focus:ring-blue-500">
+                            </div>
+                            <div>
+                                <label class="block text-[10px] font-black text-slate-400 uppercase mb-2 tracking-widest">Address</label>
+                                <input type="text" id="m-address" required placeholder="Shop Address" class="w-full bg-slate-50 border border-slate-200 rounded-2xl px-5 py-4 font-bold outline-none focus:ring-2 focus:ring-blue-500">
+                            </div>
+                            <div class="md:col-span-2" id="email-container">
+                                <label class="block text-[10px] font-black text-slate-400 uppercase mb-2 tracking-widest">Shop Login Email</label>
+                                <input type="email" id="m-shop-email" required placeholder="owner@email.com" class="w-full bg-slate-50 border border-slate-200 rounded-2xl px-5 py-4 font-bold outline-none focus:ring-2 focus:ring-blue-500">
+                            </div>
+                        </div>
+
+                        <!-- Printing Price Setup -->
+                        <div class="pt-6 border-t border-slate-100">
+                            <label class="block text-[10px] font-black text-slate-400 uppercase mb-6 tracking-widest">Printing Price Setup</label>
+                            
+                            <div class="bg-blue-50 p-5 rounded-[1.5rem] border border-blue-100 mb-6 flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
+                                <div>
+                                    <span class="text-sm font-bold text-blue-900 block">Bulk Rate Threshold</span>
+                                    <span class="text-[10px] text-blue-600 font-bold uppercase tracking-tight">Apply bulk rate after how many pages?</span>
+                                </div>
+                                <input type="number" id="m-tier-threshold" value="3" class="w-24 bg-white border border-blue-200 rounded-xl px-4 py-3 font-black text-center outline-none">
+                            </div>
+                            
+                            <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                                <div class="space-y-4 bg-slate-50 p-5 rounded-2xl border border-slate-100">
+                                    <h4 class="text-[11px] font-black text-slate-600 uppercase tracking-widest text-center border-b border-slate-200 pb-2">Black & White</h4>
+                                    <input type="number" step="0.01" id="m-bw-rate" placeholder="Normal Rate (₹)" required class="w-full bg-white border border-slate-200 rounded-xl px-4 py-3 font-bold text-center">
+                                    <input type="number" step="0.01" id="m-bw-bulk" placeholder="Bulk Rate (₹)" required class="w-full bg-white border border-slate-200 rounded-xl px-4 py-3 font-bold text-center">
+                                </div>
+                                <div class="space-y-4 bg-slate-50 p-5 rounded-2xl border border-slate-100">
+                                    <h4 class="text-[11px] font-black text-slate-600 uppercase tracking-widest text-center border-b border-slate-200 pb-2">Full Color</h4>
+                                    <input type="number" step="0.01" id="m-color-rate" placeholder="Normal Rate (₹)" required class="w-full bg-white border border-slate-200 rounded-xl px-4 py-3 font-bold text-center">
+                                    <input type="number" step="0.01" id="m-color-bulk" placeholder="Bulk Rate (₹)" required class="w-full bg-white border border-slate-200 rounded-xl px-4 py-3 font-bold text-center">
+                                </div>
+                            </div>
+                        </div>
+
+                        <button type="submit" id="btn-save-shop" class="w-full bg-blue-600 hover:bg-blue-700 text-white font-black py-5 rounded-[2rem] shadow-xl shadow-blue-200 active:scale-95 transition-all text-lg mt-4 flex items-center justify-center gap-2">
+                            <i data-lucide="check-circle" class="w-5 h-5"></i> Generate Shop Account
+                        </button>
+                    </form>
                 </div>
             </div>
+
         </div>
     </main>
 
-    <!-- EXPIRY MODAL (FIXED ALIGNMENT) -->
-    <div id="expiry-modal" class="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-[100] hidden flex items-center justify-center p-4">
-        <div class="bg-white rounded-[2.5rem] shadow-2xl max-w-sm w-full p-10 modal-animate text-center">
-            <div class="w-16 h-16 bg-blue-50 text-blue-600 rounded-full flex items-center justify-center mx-auto mb-6"><i data-lucide="timer" class="w-8 h-8"></i></div>
-            <h3 class="text-xl font-black text-slate-800 mb-2">Set Auto-Delete Time</h3>
-            <p class="text-sm text-slate-500 mb-8 leading-relaxed">After how much time should the documents be automatically deleted?</p>
+    <!-- QR CODE & CREDENTIALS MODAL -->
+    <div id="cred-modal" class="fixed inset-0 bg-slate-900/80 backdrop-blur-sm z-[110] hidden flex items-center justify-center p-4">
+        <div class="bg-white rounded-[3rem] shadow-2xl max-w-sm w-full p-10 text-center modal-animate border border-white/20">
+            <div class="w-16 h-16 bg-blue-50 text-blue-600 rounded-3xl flex items-center justify-center mx-auto mb-6"><i data-lucide="qr-code" class="w-8 h-8"></i></div>
+            <h3 class="text-2xl font-black text-slate-800 mb-2 leading-none" id="qr-display-name">Shop Credentials</h3>
+            <p class="text-[11px] font-bold text-slate-400 mb-8 uppercase tracking-widest">Share these with partner</p>
             
-            <div class="flex items-center justify-between gap-3 mb-10 w-full">
-                <input type="number" id="expiry-val" value="3" class="w-[65%] bg-slate-50 border border-slate-200 rounded-xl px-4 py-4 font-black text-center outline-none focus:ring-2 focus:ring-blue-500 text-lg">
-                <select id="expiry-unit" class="w-[35%] bg-slate-50 border border-slate-200 rounded-xl px-2 py-4 font-bold outline-none focus:ring-2 focus:ring-blue-500 text-sm">
-                    <option value="hours">Hours</option>
-                    <option value="days">Days</option>
-                </select>
+            <div id="qr-container" class="mx-auto mb-8 bg-white p-4 border-4 border-slate-50 rounded-[2.5rem] flex justify-center items-center shadow-inner" style="width: 210px; height: 210px;"></div>
+            
+            <div id="cred-info" class="bg-slate-50 p-4 rounded-2xl text-left text-xs font-mono mb-6 space-y-2 border border-slate-100">
+                <div><span class="text-slate-400">Login Email:</span> <br><span id="display-email" class="text-blue-600 font-bold"></span></div>
+                <div class="mt-2"><span class="text-slate-400">Password:</span> <br><span id="display-pass" class="text-slate-800 font-bold"></span></div>
             </div>
 
-            <div class="flex gap-3">
-                <button onclick="window.closeExpiryModal()" class="flex-1 py-4 bg-slate-100 rounded-2xl font-bold text-slate-500">Cancel</button>
-                <button id="btn-save-expiry" class="flex-1 py-4 bg-blue-600 text-white rounded-2xl font-bold shadow-lg shadow-blue-200">Save Timer</button>
-            </div>
+            <button onclick="document.getElementById('cred-modal').classList.add('hidden')" class="w-full bg-slate-950 text-white font-black py-4 rounded-3xl active:scale-95 transition-all">Close Details</button>
         </div>
     </div>
 
-    <!-- CONFIRMATION MODAL -->
-    <div id="confirm-modal" class="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-[100] hidden flex items-center justify-center p-4">
-        <div class="bg-white rounded-[2.5rem] shadow-2xl max-w-sm w-full p-10 modal-animate text-center">
-            <div class="w-20 h-20 bg-red-50 text-red-500 rounded-full flex items-center justify-center mx-auto mb-6"><i data-lucide="trash-2" class="w-10 h-10"></i></div>
-            <h3 class="text-2xl font-black text-slate-800 mb-2">Delete File?</h3>
-            <p class="text-sm text-slate-500 mb-8">This action will remove the file from storage.</p>
-            <div class="flex gap-4">
-                <button onclick="window.closeConfirm()" class="flex-1 py-4 bg-slate-100 rounded-2xl font-black text-slate-500">Go Back</button>
-                <button id="btn-confirm-delete" class="flex-1 py-4 bg-red-600 text-white rounded-2xl font-black shadow-lg">Yes, Delete</button>
-            </div>
-        </div>
+    <!-- TOAST NOTIFICATION -->
+    <div id="toast" class="fixed top-8 left-1/2 -translate-x-1/2 z-[120] flex items-center gap-4 bg-slate-900 text-white px-8 py-4 rounded-[2rem] shadow-2xl text-[11px] font-black uppercase tracking-widest transition-all duration-300 opacity-0 pointer-events-none -translate-y-4">
+        <div id="toast-icon-container"><i data-lucide="info" class="w-5 h-5 text-blue-400"></i></div>
+        <span id="toast-msg"></span>
     </div>
 
-    <!-- TOAST -->
-    <div id="toast" class="fixed top-8 left-1/2 -translate-x-1/2 z-[110] flex items-center gap-4 bg-slate-900 text-white px-8 py-5 rounded-[2rem] shadow-2xl text-[11px] font-black uppercase tracking-widest transition-all duration-300 opacity-0 pointer-events-none -translate-y-4">
-        <i id="toast-icon" data-lucide="info" class="w-5 h-5"></i><span id="toast-msg"></span>
-    </div>
+    <!-- Firebase App Logic -->
+    <script type="module">
+        import { auth, db, secondaryAuth } from './js/firebase-init.js';
+        import { signInAnonymously, onAuthStateChanged, signOut, createUserWithEmailAndPassword } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-auth.js";
+        import { doc, getDoc, setDoc, collection, onSnapshot, deleteDoc } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js";
 
-    <script type="module" src="./js/shop.js"></script>
+        // 🟢 LIVE DOMAIN SETUP (For QR Code Generation) 🟢
+        // IMPORTANT: Ye link hamesha live website ka hi QR code banayega.
+        // Ise aap apni actual Firebase hosting ya custom domain ki link bana lijiye.
+        const LIVE_BASE_URL = "https://smart-xerox.web.app"; 
+
+        const appId = typeof __app_id !== 'undefined' ? __app_id : 'default-app-id';
+        let allShops = [];
+        let allAnalytics = [];
+
+        // Formatting Helpers
+        function formatToDDMMYYYY(dateStr) {
+            if(!dateStr) return "";
+            const parts = dateStr.split('-'); 
+            if(parts.length === 3) return `${parts[2]}/${parts[1]}/${parts[0]}`;
+            return dateStr;
+        }
+
+        // View Routing
+        window.switchView = (name, el = null) => {
+            document.querySelectorAll('.view-section').forEach(v => v.classList.remove('active'));
+            document.querySelectorAll('.nav-item').forEach(n => n.classList.remove('active-nav'));
+            
+            document.getElementById('view-' + name).classList.add('active');
+            
+            if (el) el.classList.add('active-nav');
+            
+            const titles = {
+                'dashboard': 'Global Dashboard',
+                'directory': 'Shop Directory',
+                'register': 'Register Partner',
+                'shop-detail': 'Shop Analytics'
+            };
+            document.getElementById('header-title').textContent = titles[name] || 'Admin Console';
+
+            if (window.innerWidth < 1024) window.toggleSidebar();
+            lucide.createIcons();
+        };
+
+        window.toggleSidebar = () => {
+            document.getElementById('sidebar').classList.toggle('-translate-x-full');
+            document.getElementById('mobile-overlay').classList.toggle('hidden');
+        };
+
+        // Arrays Synchronizer (Dual Path Sync Logic)
+        function syncShops(newList) {
+            newList.forEach(item => {
+                const existingIndex = allShops.findIndex(x => x.id === item.id);
+                if(existingIndex >= 0) {
+                    allShops[existingIndex] = item;
+                } else {
+                    allShops.push(item);
+                }
+            });
+            document.getElementById('stat-shops').textContent = allShops.length;
+            renderDirectory();
+        }
+
+        function syncAnalytics(newList) {
+            newList.forEach(item => {
+                const existingIndex = allAnalytics.findIndex(x => x.shopId === item.shopId && x.date === item.date);
+                if(existingIndex >= 0) {
+                    allAnalytics[existingIndex] = item;
+                } else {
+                    allAnalytics.push(item);
+                }
+            });
+            
+            let sysRev = 0, sysPrints = 0;
+            allAnalytics.forEach(a => { 
+                sysRev += (a.revenue||0); 
+                sysPrints += (a.totalTokens||0); 
+            });
+            document.getElementById('stat-revenue').textContent = sysRev.toFixed(2);
+            document.getElementById('stat-prints').textContent = sysPrints;
+            renderDirectory(); 
+        }
+
+        // System Init
+        onAuthStateChanged(auth, async (user) => {
+            if (!user) {
+                await signInAnonymously(auth).catch(() => window.location.href = "index.html");
+                return;
+            }
+
+            // Listen to NEW paths
+            onSnapshot(collection(db, 'artifacts', appId, 'public', 'data', 'shops'), (snap) => {
+                syncShops(snap.docs.map(d => ({ ...d.data(), id: d.id })));
+            });
+            onSnapshot(collection(db, 'artifacts', appId, 'public', 'data', 'shop_analytics'), (snap) => {
+                syncAnalytics(snap.docs.map(d => d.data()));
+            });
+
+            // Listen to ROOT paths (For Localhost & Existing Data)
+            onSnapshot(collection(db, 'shops'), (snap) => {
+                syncShops(snap.docs.map(d => ({ ...d.data(), id: d.id })));
+            });
+            onSnapshot(collection(db, 'shop_analytics'), (snap) => {
+                syncAnalytics(snap.docs.map(d => d.data()));
+            });
+
+            document.getElementById('loading-state').classList.add('hidden');
+            document.getElementById('app-main').classList.remove('hidden');
+            lucide.createIcons();
+        });
+
+        function renderDirectory() {
+            const tbody = document.getElementById('shop-list-body');
+            tbody.innerHTML = allShops.map(s => `
+                <tr class="hover:bg-slate-50 transition-colors group cursor-pointer" onclick="window.openShopDetail('${s.id}')">
+                    <td class="px-8 py-5">
+                        <div class="font-black text-slate-900 text-base">${s.shopName}</div>
+                        <div class="text-[10px] text-slate-400 font-bold uppercase tracking-widest mt-1">Owner: ${s.ownerName} | Ph: ${s.phone || 'N/A'}</div>
+                    </td>
+                    <td class="px-8 py-5 font-mono text-xs font-bold text-slate-500">${s.id}</td>
+                    <td class="px-8 py-5 text-right flex items-center justify-end gap-3">
+                        <button onclick="event.stopPropagation(); window.viewShopQR('${s.id}')" class="p-2 bg-blue-50 text-blue-600 rounded-lg hover:bg-blue-600 hover:text-white transition-colors z-10" title="View QR Code">
+                            <i data-lucide="qr-code" class="w-4 h-4"></i>
+                        </button>
+                        <button onclick="event.stopPropagation(); window.deleteShop('${s.id}')" class="p-2 bg-red-50 text-red-500 rounded-lg hover:bg-red-600 hover:text-white transition-colors z-10" title="Delete Shop">
+                            <i data-lucide="trash-2" class="w-4 h-4"></i>
+                        </button>
+                        <button class="bg-slate-100 text-slate-600 px-4 py-2 rounded-xl text-xs font-bold uppercase tracking-widest group-hover:bg-slate-800 group-hover:text-white transition-all flex items-center justify-end gap-2">
+                            Analytics <i data-lucide="arrow-right" class="w-4 h-4"></i>
+                        </button>
+                    </td>
+                </tr>
+            `).join('');
+            lucide.createIcons();
+        }
+
+        window.openShopDetail = (shopId) => {
+            const shop = allShops.find(s => s.id === shopId);
+            if(!shop) return;
+
+            document.getElementById('detail-shop-name').textContent = shop.shopName;
+            document.getElementById('detail-shop-id').textContent = `ID: ${shop.id}`;
+
+            const shopStats = allAnalytics.filter(a => a.shopId === shopId);
+            let lifetimeRev = 0;
+            
+            shopStats.sort((a, b) => b.date.localeCompare(a.date)); // Newest first
+
+            const historyHtml = shopStats.map(stat => {
+                lifetimeRev += (stat.revenue || 0);
+                return `
+                    <tr class="hover:bg-slate-50 border-b border-slate-50">
+                        <td class="px-8 py-5 text-xs font-bold text-slate-600 flex items-center gap-2"><i data-lucide="calendar" class="w-4 h-4 text-slate-400"></i> ${formatToDDMMYYYY(stat.date)}</td>
+                        <td class="px-8 py-5 text-center font-black text-blue-600">${stat.totalTokens || 0} Prints</td>
+                        <td class="px-8 py-5 text-right font-black text-emerald-600">₹${(stat.revenue||0).toFixed(2)}</td>
+                    </tr>
+                `;
+            }).join('');
+
+            document.getElementById('detail-history-body').innerHTML = historyHtml || `<tr><td colspan="3" class="px-8 py-10 text-center text-xs font-bold text-slate-400 uppercase tracking-widest">No print history available</td></tr>`;
+            document.getElementById('detail-lifetime-rev').textContent = lifetimeRev.toFixed(2);
+
+            switchView('shop-detail');
+        };
+
+        // Complete Shop Deletion Logic
+        window.deleteShop = async (id) => {
+            if(confirm("Confirm Deletion? This will permanently remove the shop and its login access.")) {
+                try {
+                    const shop = allShops.find(s => s.id === id);
+                    
+                    // 1. Revoke access by deleting from 'users' collection (if uid exists)
+                    if (shop && shop.uid) {
+                        await deleteDoc(doc(db, 'users', shop.uid)).catch(console.error);
+                    }
+                    
+                    // 2. Delete shop configurations (Both Paths for safety)
+                    await deleteDoc(doc(db, 'artifacts', appId, 'public', 'data', 'shops', id)).catch(() => {});
+                    await deleteDoc(doc(db, 'shops', id)).catch(() => {});
+                    
+                    // Optimistically remove from local array
+                    allShops = allShops.filter(s => s.id !== id);
+                    document.getElementById('stat-shops').textContent = allShops.length;
+                    renderDirectory();
+
+                    showToast("Shop successfully removed and access revoked.", "success");
+                } catch (error) {
+                    console.error("Deletion failed:", error);
+                    showToast("Failed to delete shop completely.", "error");
+                }
+            }
+        };
+
+        // Show QR from Directory
+        window.viewShopQR = (shopId) => {
+            const shop = allShops.find(s => s.id === shopId);
+            if(!shop) return;
+            
+            document.getElementById('qr-display-name').textContent = shop.shopName;
+            document.getElementById('cred-info').classList.add('hidden'); // Hide password info
+            
+            const qrContainer = document.getElementById('qr-container');
+            qrContainer.innerHTML = "";
+            const shopUrl = `${LIVE_BASE_URL}/customer.html?shop=${shopId}`;
+            new QRCode(qrContainer, { text: shopUrl, width: 180, height: 180 });
+            
+            document.getElementById('cred-modal').classList.remove('hidden');
+        };
+
+        // Partner Registration Flow (No Email Logic)
+        document.getElementById('shop-form').onsubmit = async (e) => {
+            e.preventDefault();
+            const btn = document.getElementById('btn-save-shop');
+            btn.innerHTML = `<i data-lucide="loader-2" class="w-5 h-5 animate-spin"></i> Processing...`; 
+            btn.disabled = true;
+
+            const shopId = document.getElementById('m-shop-id').value.trim();
+            const phone = document.getElementById('m-phone').value.trim();
+            const address = document.getElementById('m-address').value.trim();
+            const email = document.getElementById('m-shop-email').value.trim();
+            
+            // Random password generate karein (Screens par dikhane ke liye)
+            const randomPass = "Pass@" + Math.floor(100000 + Math.random() * 900000);
+
+            const shopData = {
+                shopName: document.getElementById('m-shop-name').value.trim(),
+                ownerName: document.getElementById('m-owner-name').value.trim(),
+                phone: phone,
+                address: address,
+                tierThreshold: parseInt(document.getElementById('m-tier-threshold').value) || 3,
+                bwRate: parseFloat(document.getElementById('m-bw-rate').value),
+                bwRateBulk: parseFloat(document.getElementById('m-bw-bulk').value),
+                colorRate: parseFloat(document.getElementById('m-color-rate').value),
+                colorRateBulk: parseFloat(document.getElementById('m-color-bulk').value),
+                email: email,
+                createdAt: Date.now()
+            };
+
+            try {
+                // 1. Create account via secondary auth (so admin doesn't log out)
+                const cred = await createUserWithEmailAndPassword(secondaryAuth, email, randomPass);
+                await signOut(secondaryAuth);
+                
+                // 2. Save user role & shop to database
+                await setDoc(doc(db, 'users', cred.user.uid), { email, role: 'shop', shopId, isFirstLogin: true });
+                shopData.uid = cred.user.uid;
+                await setDoc(doc(db, 'artifacts', appId, 'public', 'data', 'shops', shopId), shopData);
+                // Dual Save for Localhost Safety
+                await setDoc(doc(db, 'shops', shopId), shopData).catch(() => {});
+                
+                // 3. Show the Credentials Modal (QR, Email, Password) on Admin Screen
+                document.getElementById('qr-display-name').textContent = "Shop Credentials Created";
+                document.getElementById('display-email').textContent = email;
+                document.getElementById('display-pass').textContent = randomPass;
+                document.getElementById('cred-info').classList.remove('hidden');
+                
+                const qrContainer = document.getElementById('qr-container');
+                qrContainer.innerHTML = "";
+                
+                // Generate QR using the LIVE_BASE_URL
+                const shopUrl = `${LIVE_BASE_URL}/customer.html?shop=${shopId}`;
+                new QRCode(qrContainer, { text: shopUrl, width: 180, height: 180 });
+                
+                document.getElementById('cred-modal').classList.remove('hidden');
+                
+                document.getElementById('shop-form').reset();
+                switchView('directory');
+                showToast("Account Generated Successfully!", "success");
+
+            } catch (err) {
+                console.error(err);
+                if (err.code === 'auth/email-already-in-use') {
+                    showToast("A shop with this email already exists. Try a different email.", "error");
+                } else {
+                    showToast(err.message || "Operation failed.", "error");
+                }
+            } finally {
+                btn.innerHTML = `<i data-lucide="check-circle" class="w-5 h-5"></i> Generate Shop Account`; 
+                btn.disabled = false;
+                lucide.createIcons();
+            }
+        };
+
+        function showToast(msg, type = 'info') {
+            const t = document.getElementById('toast');
+            document.getElementById('toast-msg').textContent = msg;
+            
+            const iconContainer = document.getElementById('toast-icon-container');
+            iconContainer.innerHTML = `<i data-lucide="${type === 'error' ? 'alert-circle' : 'check-circle'}" class="w-5 h-5 ${type === 'error' ? 'text-red-400' : 'text-emerald-400'}"></i>`;
+            
+            t.classList.remove('opacity-0', '-translate-y-4');
+            t.classList.add('opacity-100', 'translate-y-0');
+            lucide.createIcons();
+            
+            setTimeout(() => {
+                t.classList.remove('opacity-100', 'translate-y-0');
+                t.classList.add('opacity-0', '-translate-y-4');
+            }, 4000);
+        }
+
+        document.getElementById('btn-logout-header').onclick = () => signOut(auth).then(() => window.location.href = "index.html");
+    </script>
 </body>
 </html>
