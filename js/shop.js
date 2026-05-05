@@ -230,7 +230,7 @@ if (logoutBtn) {
 }
 
 // ==========================================
-// 3. QR CODE LOGIC
+// 3. QR CODE LOGIC (PROFESSIONAL DOWNLOAD ADDED)
 // ==========================================
 function generateShopQR() {
     const con = document.getElementById('main-qr-canvas');
@@ -263,31 +263,88 @@ window.copyShopLink = () => {
     window.showToast('Link copied to clipboard!', 'success');
 };
 
+// 🟢 NEW: Professional Canvas based QR Code Generator for Printing 🟢
 window.downloadShopQR = () => {
     const qrContainer = document.getElementById('main-qr-canvas');
     if (!qrContainer) return;
     
-    const canvas = qrContainer.querySelector('canvas');
-    const img = qrContainer.querySelector('img');
-    let url = '';
-    
-    if (img && img.src) {
-        url = img.src;
-    } else if (canvas) {
-        url = canvas.toDataURL("image/png");
-    }
-    
-    if (url) {
-        const a = document.createElement('a');
-        a.href = url;
-        a.download = `SmartXerox_QR_${currentShopId || 'Shop'}.png`;
-        document.body.appendChild(a);
-        a.click();
-        document.body.removeChild(a);
-        window.showToast("QR Code Downloaded Successfully!", "success");
-    } else {
+    const qrCanvasOrImg = qrContainer.querySelector('canvas') || qrContainer.querySelector('img');
+    if (!qrCanvasOrImg) {
         window.showToast("Wait, QR Code is generating...", "error");
+        return;
     }
+
+    const shopName = document.getElementById('ui-shop-name').textContent || 'Smart Xerox Partner';
+    const shopLink = document.getElementById('qr-link-text').textContent || '';
+
+    // Create an invisible high-quality canvas for the poster
+    const canvas = document.createElement('canvas');
+    canvas.width = 800;
+    canvas.height = 1000;
+    const ctx = canvas.getContext('2d');
+
+    // 1. Fill White Background
+    ctx.fillStyle = '#ffffff';
+    ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+    // 2. Draw Premium Blue Header Box
+    ctx.fillStyle = '#2563eb'; // Tailwind blue-600
+    ctx.fillRect(0, 0, canvas.width, 220);
+
+    // 3. Draw Shop Name Text
+    ctx.fillStyle = '#ffffff';
+    ctx.font = 'bold 56px Inter, Arial, sans-serif';
+    ctx.textAlign = 'center';
+    ctx.fillText(shopName, canvas.width / 2, 130, 700);
+
+    // 4. Draw Subtitle
+    ctx.fillStyle = '#64748b'; // Tailwind slate-500
+    ctx.font = 'bold 32px Inter, Arial, sans-serif';
+    ctx.fillText('SCAN QR CODE TO PRINT', canvas.width / 2, 320);
+
+    // 5. Draw QR Background Box with Rounded Corners (Fallback to standard rect if not supported)
+    ctx.fillStyle = '#f8fafc'; // Tailwind slate-50
+    ctx.strokeStyle = '#e2e8f0'; // Tailwind slate-200
+    ctx.lineWidth = 4;
+    
+    const boxX = 150, boxY = 380, boxW = 500, boxH = 500, r = 40;
+    ctx.beginPath();
+    ctx.moveTo(boxX + r, boxY);
+    ctx.lineTo(boxX + boxW - r, boxY);
+    ctx.quadraticCurveTo(boxX + boxW, boxY, boxX + boxW, boxY + r);
+    ctx.lineTo(boxX + boxW, boxY + boxH - r);
+    ctx.quadraticCurveTo(boxX + boxW, boxY + boxH, boxX + boxW - r, boxY + boxH);
+    ctx.lineTo(boxX + r, boxY + boxH);
+    ctx.quadraticCurveTo(boxX, boxY + boxH, boxX, boxY + boxH - r);
+    ctx.lineTo(boxX, boxY + r);
+    ctx.quadraticCurveTo(boxX, boxY, boxX + r, boxY);
+    ctx.closePath();
+    ctx.fill();
+    ctx.stroke();
+
+    // 6. Draw the actual QR Code
+    ctx.drawImage(qrCanvasOrImg, 200, 430, 400, 400);
+
+    // 7. Footer Text - Shop URL
+    ctx.fillStyle = '#3b82f6'; // Tailwind blue-500
+    ctx.font = '24px monospace';
+    ctx.fillText(shopLink, canvas.width / 2, 930, 700);
+
+    // 8. Footer Text - Branding
+    ctx.fillStyle = '#0f172a'; // Tailwind slate-900
+    ctx.font = 'bold 24px Inter, Arial, sans-serif';
+    ctx.fillText('Powered by Smart Xerox', canvas.width / 2, 970);
+
+    // Trigger Download
+    const url = canvas.toDataURL("image/png");
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `SmartXerox_Poster_${currentShopId || 'Shop'}.png`;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    
+    window.showToast("Professional QR Poster Downloaded!", "success");
 };
 
 // ==========================================
