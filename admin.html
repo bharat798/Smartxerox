@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Smart Xerox | Super Admin Panel</title>
+    <title>Smart Xerox | Shop Owner Dashboard</title>
     <!-- Tailwind CSS -->
     <script src="https://cdn.tailwindcss.com"></script>
     <!-- Lucide Icons -->
@@ -13,398 +13,241 @@
     <style>
         @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap');
         body { font-family: 'Inter', sans-serif; background-color: #f8fafc; }
-        .view-section { display: none; }
-        .view-section.active { display: block; animation: fadeIn 0.3s ease-out; }
-        @keyframes fadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
-        .modal-animate { animation: bounceIn 0.3s cubic-bezier(0.68, -0.55, 0.27, 1.55) forwards; }
-        @keyframes bounceIn { from { opacity: 0; transform: scale(0.9); } to { opacity: 1; transform: scale(1); } }
-        ::-webkit-scrollbar { width: 5px; }
+        
+        ::-webkit-scrollbar { width: 6px; height: 6px; }
+        ::-webkit-scrollbar-track { background: transparent; }
         ::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 10px; }
+        ::-webkit-scrollbar-thumb:hover { background: #94a3b8; }
+
+        @keyframes slideIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
+        .animate-slide-in { animation: slideIn 0.3s ease-out forwards; }
+
+        @keyframes modalBounce { from { opacity: 0; transform: scale(0.95); } to { opacity: 1; transform: scale(1); } }
+        .modal-animate { animation: modalBounce 0.2s ease-out forwards; }
+
+        .view-section { display: none; }
+        .view-section.active { display: block; animation: slideIn 0.3s ease-out; }
+        
+        .active-nav { background-color: rgba(37, 99, 235, 0.1) !important; color: #3b82f6 !important; border-left: 4px solid #3b82f6 !important; }
+        .nav-item { transition: all 0.2s ease; }
+
+        select { appearance: none; background-image: url("data:image/svg+xml,%3csvg xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 20 20'%3e%3cpath stroke='%236b7280' stroke-linecap='round' stroke-linejoin='round' stroke-width='1.5' d='M6 8l4 4 4-4'/%3e%3c/svg%3e"); background-position: right 0.5rem center; background-repeat: no-repeat; background-size: 1.5em 1.5em; }
     </style>
 </head>
-<body class="text-slate-800 antialiased min-h-screen flex flex-col">
+<body class="text-slate-800 h-screen flex overflow-hidden">
 
-    <!-- Header -->
-    <header class="bg-white border-b border-slate-200 sticky top-0 z-30 shadow-sm px-6">
-        <div class="max-w-7xl mx-auto h-16 flex items-center justify-between">
-            <div class="flex items-center gap-2.5">
-                <div class="bg-slate-900 p-2 rounded-xl shadow-lg">
-                    <i data-lucide="shield-check" class="w-5 h-5 text-white"></i>
+    <!-- Mobile Sidebar Overlay -->
+    <div id="mobile-overlay" class="fixed inset-0 bg-slate-900/50 z-20 hidden lg:hidden" onclick="window.toggleSidebar()"></div>
+
+    <!-- Sidebar Navigation -->
+    <aside id="sidebar" class="bg-[#0f172a] text-slate-300 w-64 shrink-0 flex flex-col h-full fixed lg:relative z-30 transition-transform duration-300 -translate-x-full lg:translate-x-0 shadow-2xl">
+        <div class="h-16 flex items-center px-6 border-b border-white/10 text-white font-bold text-lg gap-2 shrink-0">
+            <div class="bg-blue-600 p-1.5 rounded-lg"><i data-lucide="printer" class="w-5 h-5 text-white"></i></div>
+            Shop<span class="text-blue-400">Panel</span>
+            <button class="lg:hidden ml-auto text-slate-400" onclick="window.toggleSidebar()"><i data-lucide="x" class="w-5 h-5"></i></button>
+        </div>
+
+        <nav class="flex-1 py-6 overflow-y-auto">
+            <div class="px-4 mb-4 text-[10px] font-bold text-slate-500 uppercase tracking-widest">Main Menu</div>
+            <ul class="space-y-1 px-3">
+                <li><button id="nav-queue" onclick="window.switchView('queue', this)" class="nav-item w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium hover:bg-white/5 active-nav"><i data-lucide="list-todo" class="w-5 h-5"></i> Print Queue <span id="q-badge" class="ml-auto bg-blue-500 text-white text-[10px] font-bold px-2 py-0.5 rounded-full hidden">0</span></button></li>
+                <li><button id="nav-done" onclick="window.switchView('done', this)" class="nav-item w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium hover:bg-white/5"><i data-lucide="check-circle" class="w-5 h-5"></i> Completed Jobs</button></li>
+                <li><button id="nav-qr" onclick="window.switchView('qr', this)" class="nav-item w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium hover:bg-white/5"><i data-lucide="qr-code" class="w-5 h-5"></i> Shop QR Code</button></li>
+                <li><button id="nav-analytics" onclick="window.switchView('analytics', this)" class="nav-item w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium hover:bg-white/5"><i data-lucide="bar-chart-2" class="w-5 h-5"></i> Revenue Analytics</button></li>
+                <li><button id="nav-settings" onclick="window.switchView('settings', this)" class="nav-item w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium hover:bg-white/5"><i data-lucide="settings" class="w-5 h-5"></i> Shop Settings</button></li>
+            </ul>
+        </nav>
+
+        <div class="p-4 border-t border-white/10 bg-slate-900/50">
+            <div class="flex items-center gap-3 mb-4 px-2">
+                <div class="w-10 h-10 rounded-full bg-blue-500 flex items-center justify-center text-white font-bold shrink-0"><i data-lucide="user" class="w-5 h-5"></i></div>
+                <div class="flex-1 min-w-0">
+                    <p class="text-sm font-bold text-white truncate" id="shop-owner-name">Loading...</p>
+                    <p id="shop-user-email" class="text-[10px] text-slate-400 truncate">Connecting...</p>
                 </div>
-                <h1 class="font-black text-xl text-slate-900 tracking-tight italic">Admin<span class="text-blue-600">Console</span></h1>
+            </div>
+            <button id="btn-logout" class="w-full py-2.5 bg-red-500/10 hover:bg-red-500/20 text-red-400 text-xs font-bold rounded-xl border border-red-500/20 transition-all flex items-center justify-center gap-2">
+                <i data-lucide="log-out" class="w-4 h-4"></i> Sign Out
+            </button>
+        </div>
+    </aside>
+
+    <main class="flex-1 flex flex-col h-full overflow-hidden">
+        <header class="h-16 bg-white border-b border-slate-200 flex items-center justify-between px-4 lg:px-8 shrink-0 z-10 shadow-sm">
+            <div class="flex items-center gap-3">
+                <button class="lg:hidden p-2 text-slate-500" onclick="window.toggleSidebar()"><i data-lucide="menu" class="w-6 h-6"></i></button>
+                <div class="flex flex-col">
+                    <h1 class="text-base font-bold text-slate-800 leading-none" id="ui-shop-name">Connecting...</h1>
+                    <span class="text-[10px] font-bold text-slate-400 uppercase tracking-tighter" id="ui-shop-id">Please wait...</span>
+                </div>
             </div>
             <div class="flex items-center gap-4">
-                <div id="admin-status" class="text-[10px] font-black bg-emerald-50 text-emerald-600 px-3 py-1.5 rounded-full border border-emerald-100 uppercase tracking-widest flex items-center gap-1.5">
-                    <span class="w-1.5 h-1.5 bg-emerald-500 rounded-full animate-ping"></span> System Online
+                <div class="flex items-center gap-2 bg-emerald-50 text-emerald-700 px-3 py-1.5 rounded-full border border-emerald-100 text-[10px] font-black uppercase tracking-wider">
+                    <span class="relative flex h-2 w-2"><span class="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span><span class="relative inline-flex rounded-full h-2 w-2 bg-emerald-500"></span></span> System Live
                 </div>
-                <button id="btn-logout-header" class="text-slate-400 hover:text-red-500 transition-all p-2 rounded-lg hover:bg-slate-50">
-                    <i data-lucide="log-out" class="w-5 h-5"></i>
-                </button>
+                <button id="sound-btn" onclick="window.toggleSound()" class="p-2 text-slate-400 hover:text-blue-600 transition-colors bg-slate-50 rounded-lg border border-slate-100"><i data-lucide="bell" class="w-5 h-5 text-blue-500"></i></button>
             </div>
-        </div>
-    </header>
+        </header>
 
-    <!-- App State Screen -->
-    <div id="loading-state" class="flex-1 flex flex-col items-center justify-center p-6 text-center mt-20">
-        <div class="w-12 h-12 border-4 border-blue-100 border-t-blue-600 rounded-full animate-spin mb-4"></div>
-        <h2 class="text-lg font-bold text-slate-800">Synchronizing Management Data...</h2>
-    </div>
-
-    <!-- Main Content -->
-    <main id="app-main" class="hidden flex-1 max-w-7xl mx-auto w-full p-6 space-y-8">
-        
-        <!-- Stats Grid -->
-        <div class="grid grid-cols-1 md:grid-cols-4 gap-6">
-            <div class="bg-white p-6 rounded-[2.5rem] border border-slate-200 shadow-sm text-center">
-                <p class="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1">Total Shops</p>
-                <h3 class="text-4xl font-black text-slate-900" id="stat-shops">0</h3>
-            </div>
-            <div class="bg-white p-6 rounded-[2.5rem] border border-slate-200 shadow-sm text-center">
-                <p class="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1">Total Print Jobs</p>
-                <h3 class="text-4xl font-black text-blue-600" id="stat-prints">0</h3>
-            </div>
-            <div class="bg-gradient-to-br from-blue-600 to-indigo-700 p-6 rounded-[2.5rem] text-white shadow-xl shadow-blue-100 text-center">
-                <p class="text-[10px] font-black text-blue-100 uppercase tracking-widest mb-1 text-opacity-70">Total Revenue</p>
-                <h3 class="text-4xl font-black italic">₹<span id="stat-revenue">0</span></h3>
-            </div>
-            <div class="bg-white p-6 rounded-[2.5rem] border border-slate-200 shadow-sm flex items-center justify-center">
-                <button onclick="window.openAddShop()" class="w-full h-full flex flex-col items-center justify-center gap-2 group transition-all">
-                    <div class="w-12 h-12 bg-blue-50 text-blue-600 rounded-full flex items-center justify-center group-hover:scale-110 transition-transform group-hover:bg-blue-600 group-hover:text-white shadow-inner">
-                        <i data-lucide="plus" class="w-7 h-7"></i>
+        <div class="flex-1 overflow-y-auto p-4 lg:p-8 bg-slate-50">
+            <!-- VIEW: QUEUE -->
+            <div id="view-queue" class="view-section active">
+                <div class="grid grid-cols-2 lg:grid-cols-3 gap-4 mb-8">
+                    <div class="bg-white p-5 rounded-2xl shadow-sm border border-slate-200 flex items-center gap-4">
+                        <div class="w-12 h-12 bg-amber-50 text-amber-600 rounded-xl flex items-center justify-center shrink-0 border border-amber-100"><i data-lucide="clock" class="w-6 h-6"></i></div>
+                        <div><p class="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Active Prints</p><h3 class="text-3xl font-black text-slate-800" id="s-pending">0</h3></div>
                     </div>
-                    <span class="text-xs font-black text-slate-500 uppercase tracking-widest">Register New Partner</span>
-                </button>
+                    <div class="bg-white p-5 rounded-2xl shadow-sm border border-slate-200 flex items-center gap-4">
+                        <div class="w-12 h-12 bg-blue-50 text-blue-600 rounded-xl flex items-center justify-center shrink-0 border border-blue-100"><i data-lucide="layers" class="w-6 h-6"></i></div>
+                        <div><p class="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Received Today</p><h3 class="text-3xl font-black text-slate-800" id="s-total">0</h3></div>
+                    </div>
+                </div>
+                <div id="queue-cards" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6"></div>
             </div>
-        </div>
 
-        <!-- Shops List Table -->
-        <div class="bg-white rounded-[2.5rem] border border-slate-200 shadow-sm overflow-hidden">
-            <div class="px-8 py-6 border-b border-slate-100 flex items-center justify-between">
-                <h2 class="font-black text-slate-800 text-sm uppercase tracking-widest">Registered Shop Partners</h2>
-                <div class="bg-slate-50 px-3 py-1.5 rounded-full border border-slate-100 text-[10px] font-bold text-slate-400 uppercase">Live Updates Enabled</div>
+            <!-- VIEW: ANALYTICS -->
+            <div id="view-analytics" class="view-section">
+                <div class="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
+                    <div class="bg-gradient-to-br from-emerald-500 to-emerald-600 p-8 rounded-[2rem] text-white shadow-xl shadow-emerald-200 relative overflow-hidden">
+                        <i data-lucide="indian-rupee" class="absolute -right-6 -bottom-6 w-32 h-32 opacity-20 rotate-12"></i>
+                        <p class="text-xs font-black uppercase mb-1">Today's Revenue</p>
+                        <h3 class="text-5xl font-black">₹<span id="stat-earn-today">0</span></h3>
+                    </div>
+                    <div class="bg-white p-8 rounded-[2rem] border border-slate-200 shadow-sm">
+                        <p class="text-xs font-black text-slate-400 uppercase mb-1">Today's Total Tokens</p>
+                        <h3 class="text-5xl font-black text-blue-600" id="stat-tokens-today">0</h3>
+                    </div>
+                    <div class="bg-white p-8 rounded-[2rem] border border-slate-200 shadow-sm">
+                        <p class="text-xs font-black text-slate-400 uppercase mb-1">Lifetime Revenue</p>
+                        <h3 class="text-5xl font-black text-slate-800">₹<span id="stat-earn-total">0</span></h3>
+                    </div>
+                </div>
+                <div class="bg-white rounded-3xl border border-slate-200 overflow-hidden shadow-sm">
+                    <div class="p-6 border-b border-slate-100 font-black text-xs uppercase tracking-widest">Daily Revenue History</div>
+                    <div class="overflow-x-auto">
+                        <table class="w-full text-left">
+                            <thead class="bg-slate-50 text-[10px] font-black uppercase text-slate-400 border-b border-slate-100">
+                                <tr><th class="p-5">Date (DD/MM/YYYY)</th><th class="p-5 text-center">Tokens Generated</th><th class="p-5 text-right">Earnings (₹)</th></tr>
+                            </thead>
+                            <tbody id="daily-revenue-table" class="text-sm divide-y divide-slate-50 font-medium"></tbody>
+                        </table>
+                    </div>
+                </div>
             </div>
-            <div class="overflow-x-auto">
-                <table class="w-full text-left border-collapse">
-                    <thead class="bg-slate-50 text-[10px] font-black uppercase text-slate-400 border-b border-slate-100">
-                        <tr>
-                            <th class="px-8 py-4">Shop Details</th>
-                            <th class="px-8 py-4">Current Rates (Normal / Bulk)</th>
-                            <th class="px-8 py-4 text-center">Total Revenue</th>
-                            <th class="px-8 py-4 text-right">Actions</th>
-                        </tr>
-                    </thead>
-                    <tbody id="shop-list-body" class="text-sm divide-y divide-slate-50 font-medium">
-                        <!-- Dynamic Content -->
-                    </tbody>
-                </table>
+
+            <!-- VIEW: DONE -->
+            <div id="view-done" class="view-section">
+                <h2 class="text-xl font-black mb-6 flex items-center gap-2 text-slate-800">
+                    <i data-lucide="history" class="w-6 h-6 text-emerald-600"></i> 
+                    <span id="history-title">Today's Completed History</span>
+                </h2>
+                <div id="done-cards" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6"></div>
+            </div>
+
+            <!-- VIEW: SETTINGS (TIERED PRICING) -->
+            <div id="view-settings" class="view-section">
+                <div class="max-w-2xl mx-auto">
+                    <h2 class="text-2xl font-black text-slate-800 mb-2">Shop Pricing & Tiers</h2>
+                    <p class="text-sm text-slate-500 mb-8">Set your print rates and tiers here. Bulk rates will apply automatically based on the page count.</p>
+                    
+                    <div class="bg-white rounded-3xl border border-slate-200 shadow-sm p-8 space-y-8">
+                        <div class="bg-blue-50 p-6 rounded-2xl border border-blue-100 flex items-center justify-between gap-4">
+                            <div class="flex-1">
+                                <h4 class="font-bold text-blue-900 text-sm">Bulk Tier Threshold</h4>
+                                <p class="text-[11px] text-blue-700">After how many pages should the bulk rate apply?</p>
+                            </div>
+                            <div class="w-32">
+                                <input type="number" id="tier-threshold" value="3" class="w-full bg-white border border-blue-200 rounded-xl px-4 py-3 font-bold text-center outline-none">
+                            </div>
+                        </div>
+
+                        <div class="space-y-4">
+                            <h4 class="font-black text-[10px] text-slate-400 uppercase tracking-widest">B&W Rates (Per Page)</h4>
+                            <div class="grid grid-cols-2 gap-4">
+                                <div>
+                                    <label class="block text-[10px] font-bold text-slate-500 mb-1.5 uppercase tracking-tighter">Normal Rate (₹)</label>
+                                    <input type="number" step="0.01" id="bw-rate-input" class="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-3.5 font-bold outline-none">
+                                </div>
+                                <div>
+                                    <label class="block text-[10px] font-bold text-slate-500 mb-1.5 uppercase tracking-tighter">Bulk Rate (₹)</label>
+                                    <input type="number" step="0.01" id="bw-bulk-input" class="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-3.5 font-bold outline-none">
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="space-y-4">
+                            <h4 class="font-black text-[10px] text-slate-400 uppercase tracking-widest">Color Rates (Per Page)</h4>
+                            <div class="grid grid-cols-2 gap-4">
+                                <div>
+                                    <label class="block text-[10px] font-bold text-slate-500 mb-1.5 uppercase tracking-tighter">Normal Rate (₹)</label>
+                                    <input type="number" step="0.01" id="color-rate-input" class="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-3.5 font-bold outline-none">
+                                </div>
+                                <div>
+                                    <label class="block text-[10px] font-bold text-slate-500 mb-1.5 uppercase tracking-tighter">Bulk Rate (₹)</label>
+                                    <input type="number" step="0.01" id="color-bulk-input" class="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-3.5 font-bold outline-none">
+                                </div>
+                            </div>
+                        </div>
+
+                        <button onclick="window.saveShopRates()" class="w-full bg-blue-600 text-white font-black py-4 rounded-2xl shadow-lg shadow-blue-200 active:scale-95 transition-all flex items-center justify-center gap-2">
+                            <i data-lucide="save" class="w-5 h-5"></i> Save All Rates
+                        </button>
+                    </div>
+                </div>
+            </div>
+
+            <!-- VIEW: QR -->
+            <div id="view-qr" class="view-section">
+                <div class="max-w-md mx-auto mt-10 bg-white p-12 rounded-[3rem] border border-slate-200 text-center shadow-2xl">
+                    <h2 class="text-2xl font-black text-slate-800 mb-2">Shop Access QR</h2>
+                    <div class="bg-white p-6 inline-block border-4 border-slate-50 rounded-[2.5rem] my-8 shadow-inner"><div id="main-qr-canvas" style="width: 180px; height: 180px;"></div></div>
+                    <p id="qr-link-text" class="text-[10px] font-mono text-slate-400 bg-slate-50 p-4 rounded-2xl mb-8 truncate"></p>
+                    <button onclick="window.copyShopLink()" class="w-full bg-blue-600 text-white font-black py-4 rounded-2xl shadow-lg active:scale-95 transition-all flex items-center justify-center gap-2"><i data-lucide="copy" class="w-4 h-4"></i> Copy Shop Link</button>
+                </div>
             </div>
         </div>
     </main>
 
-    <!-- ADD/EDIT SHOP MODAL -->
-    <div id="shop-modal" class="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-[100] hidden flex items-center justify-center p-4">
-        <div class="bg-white rounded-[3rem] shadow-2xl max-w-lg w-full p-10 modal-animate overflow-y-auto max-h-[90vh]">
-            <div class="flex items-center justify-between mb-8">
-                <h3 id="modal-title" class="text-2xl font-black text-slate-800 tracking-tight leading-none">Register New Shop</h3>
-                <button onclick="window.closeShopModal()" class="p-2 bg-slate-50 rounded-xl hover:bg-red-50 hover:text-red-500 transition-all"><i data-lucide="x" class="w-5 h-5"></i></button>
-            </div>
+    <!-- EXPIRY MODAL (FIXED ALIGNMENT) -->
+    <div id="expiry-modal" class="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-[100] hidden flex items-center justify-center p-4">
+        <div class="bg-white rounded-[2.5rem] shadow-2xl max-w-sm w-full p-10 modal-animate text-center">
+            <div class="w-16 h-16 bg-blue-50 text-blue-600 rounded-full flex items-center justify-center mx-auto mb-6"><i data-lucide="timer" class="w-8 h-8"></i></div>
+            <h3 class="text-xl font-black text-slate-800 mb-2">Set Auto-Delete Time</h3>
+            <p class="text-sm text-slate-500 mb-8 leading-relaxed">After how much time should the documents be automatically deleted?</p>
             
-            <form id="shop-form" class="space-y-6">
-                <div class="grid grid-cols-2 gap-4">
-                    <div class="col-span-2">
-                        <label class="block text-[10px] font-black text-slate-400 uppercase mb-2 tracking-widest">Shop Name</label>
-                        <input type="text" id="m-shop-name" required class="w-full bg-slate-50 border border-slate-200 rounded-2xl px-5 py-4 font-bold outline-none focus:ring-2 focus:ring-blue-500">
-                    </div>
-                    <div>
-                        <label class="block text-[10px] font-black text-slate-400 uppercase mb-2 tracking-widest">Owner Name</label>
-                        <input type="text" id="m-owner-name" required class="w-full bg-slate-50 border border-slate-200 rounded-2xl px-5 py-4 font-bold outline-none focus:ring-2 focus:ring-blue-500">
-                    </div>
-                    <div>
-                        <label class="block text-[10px] font-black text-slate-400 uppercase mb-2 tracking-widest">Unique ID (System)</label>
-                        <input type="text" id="m-shop-id" required class="w-full bg-slate-50 border border-slate-200 rounded-2xl px-5 py-4 font-bold outline-none focus:ring-2 focus:ring-blue-500">
-                    </div>
-                    <div class="col-span-2" id="email-container">
-                        <label class="block text-[10px] font-black text-slate-400 uppercase mb-2 tracking-widest">Login Email Address</label>
-                        <input type="email" id="m-shop-email" required class="w-full bg-slate-50 border border-slate-200 rounded-2xl px-5 py-4 font-bold outline-none focus:ring-2 focus:ring-blue-500">
-                    </div>
-                </div>
+            <div class="flex items-center justify-between gap-3 mb-10 w-full">
+                <input type="number" id="expiry-val" value="3" class="w-[65%] bg-slate-50 border border-slate-200 rounded-xl px-4 py-4 font-black text-center outline-none focus:ring-2 focus:ring-blue-500 text-lg">
+                <select id="expiry-unit" class="w-[35%] bg-slate-50 border border-slate-200 rounded-xl px-2 py-4 font-bold outline-none focus:ring-2 focus:ring-blue-500 text-sm">
+                    <option value="hours">Hours</option>
+                    <option value="days">Days</option>
+                </select>
+            </div>
 
-                <div class="pt-4 border-t border-slate-100">
-                    <label class="block text-[10px] font-black text-slate-400 uppercase mb-4 tracking-widest">Pricing Tiers Configuration</label>
-                    <div class="bg-blue-50 p-5 rounded-[2rem] border border-blue-100 mb-6 flex items-center justify-between">
-                        <div class="flex flex-col">
-                            <span class="text-xs font-bold text-blue-900">Bulk Rate Threshold</span>
-                            <span class="text-[9px] text-blue-400 font-bold uppercase tracking-tighter italic">Applied after how many pages?</span>
-                        </div>
-                        <input type="number" id="m-tier-threshold" value="3" class="w-20 bg-white border border-blue-200 rounded-xl px-3 py-2 font-black text-center outline-none">
-                    </div>
-                    
-                    <div class="grid grid-cols-2 gap-6">
-                        <div class="space-y-4">
-                            <h4 class="text-[10px] font-black text-slate-800 uppercase tracking-widest text-center">Black & White</h4>
-                            <input type="number" step="0.01" id="m-bw-rate" placeholder="Normal Rate ₹" class="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-3 font-bold text-center">
-                            <input type="number" step="0.01" id="m-bw-bulk" placeholder="Bulk Rate ₹" class="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-3 font-bold text-center">
-                        </div>
-                        <div class="space-y-4">
-                            <h4 class="text-[10px] font-black text-slate-800 uppercase tracking-widest text-center">Full Color</h4>
-                            <input type="number" step="0.01" id="m-color-rate" placeholder="Normal Rate ₹" class="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-3 font-bold text-center">
-                            <input type="number" step="0.01" id="m-color-bulk" placeholder="Bulk Rate ₹" class="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-3 font-bold text-center">
-                        </div>
-                    </div>
-                </div>
-
-                <button type="submit" id="btn-save-shop" class="w-full bg-blue-600 text-white font-black py-5 rounded-[2rem] shadow-xl shadow-blue-100 active:scale-95 transition-all text-lg">Confirm Registration</button>
-            </form>
+            <div class="flex gap-3">
+                <button onclick="window.closeExpiryModal()" class="flex-1 py-4 bg-slate-100 rounded-2xl font-bold text-slate-500">Cancel</button>
+                <button id="btn-save-expiry" class="flex-1 py-4 bg-blue-600 text-white rounded-2xl font-bold shadow-lg shadow-blue-200">Save Timer</button>
+            </div>
         </div>
     </div>
 
-    <!-- QR CODE VIEW MODAL -->
-    <div id="cred-modal" class="fixed inset-0 bg-slate-900/80 backdrop-blur-sm z-[110] hidden flex items-center justify-center p-4">
-        <div class="bg-white rounded-[3rem] shadow-2xl max-w-sm w-full p-10 text-center modal-animate border border-white/20">
-            <div class="w-16 h-16 bg-blue-50 text-blue-600 rounded-3xl flex items-center justify-center mx-auto mb-6"><i data-lucide="qr-code" class="w-8 h-8"></i></div>
-            <h3 class="text-2xl font-black text-slate-800 mb-2 leading-none" id="qr-display-name">Shop QR Code</h3>
-            <p class="text-[11px] font-bold text-slate-400 mb-8 uppercase tracking-widest">Customer Access Link</p>
-            
-            <div id="qr-container" class="mx-auto mb-8 bg-white p-4 border-4 border-slate-50 rounded-[2.5rem] flex justify-center items-center shadow-inner" style="width: 210px; height: 210px;"></div>
-            
-            <div id="cred-info" class="hidden bg-slate-50 p-4 rounded-2xl text-left text-xs font-mono mb-6 space-y-2 border border-slate-100">
-                <div><span class="text-slate-400">Email:</span> <span id="display-email" class="text-blue-600 font-bold"></span></div>
-                <div><span class="text-slate-400">Password:</span> <span id="display-pass" class="text-slate-800 font-bold"></span></div>
+    <!-- CONFIRMATION MODAL -->
+    <div id="confirm-modal" class="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-[100] hidden flex items-center justify-center p-4">
+        <div class="bg-white rounded-[2.5rem] shadow-2xl max-w-sm w-full p-10 modal-animate text-center">
+            <div class="w-20 h-20 bg-red-50 text-red-500 rounded-full flex items-center justify-center mx-auto mb-6"><i data-lucide="trash-2" class="w-10 h-10"></i></div>
+            <h3 class="text-2xl font-black text-slate-800 mb-2">Delete File?</h3>
+            <p class="text-sm text-slate-500 mb-8">This action will remove the file from storage.</p>
+            <div class="flex gap-4">
+                <button onclick="window.closeConfirm()" class="flex-1 py-4 bg-slate-100 rounded-2xl font-black text-slate-500">Go Back</button>
+                <button id="btn-confirm-delete" class="flex-1 py-4 bg-red-600 text-white rounded-2xl font-black shadow-lg">Yes, Delete</button>
             </div>
-
-            <button onclick="document.getElementById('cred-modal').classList.add('hidden')" class="w-full bg-slate-950 text-white font-black py-4 rounded-3xl active:scale-95 transition-all">Close Console</button>
         </div>
     </div>
 
     <!-- TOAST -->
-    <div id="toast" class="fixed top-8 left-1/2 -translate-x-1/2 z-[120] flex items-center gap-4 bg-slate-900 text-white px-8 py-5 rounded-[2.5rem] shadow-2xl text-[11px] font-black uppercase tracking-widest transition-all duration-300 opacity-0 pointer-events-none -translate-y-4">
-        <i data-lucide="info" class="w-5 h-5 text-blue-400"></i><span id="toast-msg"></span>
+    <div id="toast" class="fixed top-8 left-1/2 -translate-x-1/2 z-[110] flex items-center gap-4 bg-slate-900 text-white px-8 py-5 rounded-[2rem] shadow-2xl text-[11px] font-black uppercase tracking-widest transition-all duration-300 opacity-0 pointer-events-none -translate-y-4">
+        <i id="toast-icon" data-lucide="info" class="w-5 h-5"></i><span id="toast-msg"></span>
     </div>
 
-    <script type="module">
-        import { auth, db, secondaryAuth } from './js/firebase-init.js';
-        import { signInAnonymously, onAuthStateChanged, signOut, createUserWithEmailAndPassword } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-auth.js";
-        import { doc, getDoc, setDoc, collection, onSnapshot, updateDoc, deleteDoc } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js";
-
-        const appId = typeof __app_id !== 'undefined' ? __app_id : 'default-app-id';
-        let allShops = [];
-        let allAnalytics = [];
-        let editMode = false;
-        let activeShopId = null;
-
-        onAuthStateChanged(auth, async (user) => {
-            if (!user) {
-                await signInAnonymously(auth).catch(() => { window.location.href = "index.html"; });
-                return;
-            }
-            bootstrapAdmin();
-        });
-
-        async function bootstrapAdmin() {
-            // Listen to rule 1 path
-            onSnapshot(collection(db, 'artifacts', appId, 'public', 'data', 'shops'), (snap) => {
-                const listA = snap.docs.map(d => ({ ...d.data(), id: d.id }));
-                syncShops(listA);
-            });
-
-            // Fallback for root collection (migration/safety)
-            onSnapshot(collection(db, 'shops'), (snap) => {
-                const listB = snap.docs.map(d => ({ ...d.data(), id: d.id }));
-                syncShops(listB);
-            });
-
-            onSnapshot(collection(db, 'artifacts', appId, 'public', 'data', 'shop_analytics'), (snap) => {
-                allAnalytics = snap.docs.map(d => d.data());
-                calculateGlobalStats();
-                renderShops();
-            });
-
-            document.getElementById('loading-state').classList.add('hidden');
-            document.getElementById('app-main').classList.remove('hidden');
-            lucide.createIcons();
-        }
-
-        function syncShops(newList) {
-            newList.forEach(item => {
-                if(!allShops.find(x => x.id === item.id)) allShops.push(item);
-            });
-            document.getElementById('stat-shops').textContent = allShops.length;
-            renderShops();
-        }
-
-        function calculateGlobalStats() {
-            let totalRevenue = 0, totalPrints = 0;
-            allAnalytics.forEach(a => {
-                totalRevenue += (a.revenue || 0);
-                totalPrints += (a.totalTokens || 0);
-            });
-            document.getElementById('stat-revenue').textContent = totalRevenue.toFixed(1);
-            document.getElementById('stat-prints').textContent = totalPrints;
-        }
-
-        function renderShops() {
-            const body = document.getElementById('shop-list-body');
-            if(!body) return;
-
-            body.innerHTML = allShops.map(s => {
-                const shopRevenue = allAnalytics
-                    .filter(a => a.shopId === s.id)
-                    .reduce((sum, current) => sum + (current.revenue || 0), 0);
-
-                return `
-                    <tr class="hover:bg-slate-50 transition-colors group">
-                        <td class="px-8 py-5">
-                            <div class="font-black text-slate-900 leading-tight">${s.shopName}</div>
-                            <div class="text-[10px] text-slate-400 uppercase tracking-widest font-bold mt-1 italic">ID: ${s.id} • ${s.ownerName}</div>
-                        </td>
-                        <td class="px-8 py-5">
-                            <div class="flex items-center gap-3">
-                                <div class="bg-slate-100 px-3 py-1.5 rounded-xl border border-slate-200">
-                                    <span class="text-[8px] font-black text-slate-400 block uppercase mb-0.5">B&W Rate</span>
-                                    <span class="text-xs font-black text-slate-700">₹${s.bwRate || 2} / ₹${s.bwRateBulk || 1.5}</span>
-                                </div>
-                                <div class="bg-purple-50 px-3 py-1.5 rounded-xl border border-purple-100">
-                                    <span class="text-[8px] font-black text-purple-400 block uppercase mb-0.5">Color Rate</span>
-                                    <span class="text-xs font-black text-purple-700">₹${s.colorRate || 10} / ₹${s.colorRateBulk || 8}</span>
-                                </div>
-                                <div class="bg-blue-50 px-2 py-1 rounded-lg border border-blue-100 text-[8px] font-black text-blue-600">
-                                    T: ${s.tierThreshold || 3}+
-                                </div>
-                            </div>
-                        </td>
-                        <td class="px-8 py-5 text-center">
-                            <span class="text-emerald-600 font-black text-lg italic">₹${shopRevenue.toFixed(1)}</span>
-                        </td>
-                        <td class="px-8 py-5 text-right space-x-2">
-                            <button onclick="window.viewShopQR('${s.id}')" class="p-2.5 bg-blue-50 text-blue-600 rounded-xl hover:bg-blue-600 hover:text-white transition-all shadow-sm" title="Show QR Code"><i data-lucide="qr-code" class="w-4 h-4"></i></button>
-                            <button onclick="window.editShop('${s.id}')" class="p-2.5 bg-slate-100 text-slate-600 rounded-xl hover:bg-slate-900 hover:text-white transition-all" title="Edit Configuration"><i data-lucide="settings-2" class="w-4 h-4"></i></button>
-                            <button onclick="window.deleteShop('${s.id}')" class="p-2.5 text-slate-300 hover:text-red-500 transition-all"><i data-lucide="trash-2" class="w-4 h-4"></i></button>
-                        </td>
-                    </tr>
-                `;
-            }).join('');
-            lucide.createIcons();
-        }
-
-        window.viewShopQR = (id) => {
-            const s = allShops.find(x => x.id === id);
-            if(!s) return;
-            
-            document.getElementById('qr-display-name').textContent = s.shopName;
-            document.getElementById('cred-info').classList.add('hidden');
-            
-            const qrContainer = document.getElementById('qr-container');
-            qrContainer.innerHTML = "";
-            const currentUrl = window.location.href;
-            const baseUrl = currentUrl.substring(0, currentUrl.lastIndexOf('/')) + "/customer.html";
-            const shopUrl = `${baseUrl}?shop=${id}`;
-            
-            new QRCode(qrContainer, { text: shopUrl, width: 180, height: 180 });
-            document.getElementById('cred-modal').classList.remove('hidden');
-        };
-
-        window.openAddShop = () => {
-            editMode = false; activeShopId = null;
-            document.getElementById('modal-title').textContent = "Register New Shop";
-            document.getElementById('m-shop-id').disabled = false;
-            document.getElementById('email-container').classList.remove('hidden');
-            document.getElementById('shop-form').reset();
-            document.getElementById('shop-modal').classList.remove('hidden');
-        };
-
-        window.editShop = (id) => {
-            const s = allShops.find(x => x.id === id);
-            if(!s) return;
-            editMode = true; activeShopId = id;
-            document.getElementById('modal-title').textContent = "Edit Shop Config";
-            document.getElementById('m-shop-name').value = s.shopName;
-            document.getElementById('m-owner-name').value = s.ownerName;
-            document.getElementById('m-shop-id').value = s.id;
-            document.getElementById('m-shop-id').disabled = true;
-            document.getElementById('email-container').classList.add('hidden');
-            document.getElementById('m-tier-threshold').value = s.tierThreshold || 3;
-            document.getElementById('m-bw-rate').value = s.bwRate;
-            document.getElementById('m-bw-bulk').value = s.bwRateBulk;
-            document.getElementById('m-color-rate').value = s.colorRate;
-            document.getElementById('m-color-bulk').value = s.colorRateBulk;
-            document.getElementById('shop-modal').classList.remove('hidden');
-        };
-
-        window.closeShopModal = () => document.getElementById('shop-modal').classList.add('hidden');
-
-        document.getElementById('shop-form').onsubmit = async (e) => {
-            e.preventDefault();
-            const btn = document.getElementById('btn-save-shop');
-            btn.innerHTML = "Processing Data..."; btn.disabled = true;
-
-            const shopId = document.getElementById('m-shop-id').value.trim();
-            const email = document.getElementById('m-shop-email').value.trim();
-            const pass = "Pass@" + Math.floor(100000 + Math.random() * 900000);
-
-            const shopData = {
-                shopName: document.getElementById('m-shop-name').value.trim(),
-                ownerName: document.getElementById('m-owner-name').value.trim(),
-                bwRate: parseFloat(document.getElementById('m-bw-rate').value),
-                bwRateBulk: parseFloat(document.getElementById('m-bw-bulk').value),
-                colorRate: parseFloat(document.getElementById('m-color-rate').value),
-                colorRateBulk: parseFloat(document.getElementById('m-color-bulk').value),
-                tierThreshold: parseInt(document.getElementById('m-tier-threshold').value) || 3,
-                updatedAt: Date.now()
-            };
-
-            try {
-                if (!editMode) {
-                    const cred = await createUserWithEmailAndPassword(secondaryAuth, email, pass);
-                    await signOut(secondaryAuth);
-                    await setDoc(doc(db, 'users', cred.user.uid), { email, role: 'shop', shopId, isFirstLogin: true });
-                    shopData.uid = cred.user.uid;
-                    shopData.email = email;
-                    shopData.createdAt = Date.now();
-                    
-                    document.getElementById('qr-display-name').textContent = "New Shop Access";
-                    document.getElementById('display-email').textContent = email;
-                    document.getElementById('display-pass').textContent = pass;
-                    document.getElementById('cred-info').classList.remove('hidden');
-                    
-                    const qrContainer = document.getElementById('qr-container');
-                    qrContainer.innerHTML = "";
-                    const currentUrl = window.location.href;
-                    const baseUrl = currentUrl.substring(0, currentUrl.lastIndexOf('/')) + "/customer.html";
-                    new QRCode(qrContainer, { text: `${baseUrl}?shop=${shopId}`, width: 180, height: 180 });
-                    document.getElementById('cred-modal').classList.remove('hidden');
-                }
-
-                await setDoc(doc(db, 'artifacts', appId, 'public', 'data', 'shops', shopId), shopData, { merge: true });
-                showToast(editMode ? "Config updated!" : "Shop onboarded!", "success");
-                window.closeShopModal();
-            } catch (err) {
-                showToast("Operation failed.", "error");
-            } finally {
-                btn.innerHTML = "Confirm Registration"; btn.disabled = false;
-            }
-        };
-
-        window.deleteShop = async (id) => {
-            if(confirm("Confirm Deletion? Shop will lose dashboard access.")) {
-                await deleteDoc(doc(db, 'artifacts', appId, 'public', 'data', 'shops', id));
-                await deleteDoc(doc(db, 'shops', id)).catch(() => {});
-                showToast("Shop removed.");
-            }
-        };
-
-        function showToast(msg, type = 'info') {
-            const t = document.getElementById('toast');
-            document.getElementById('toast-msg').textContent = msg;
-            t.classList.remove('opacity-0', '-translate-y-4');
-            t.classList.add('opacity-100', 'translate-y-0');
-            setTimeout(() => {
-                t.classList.remove('opacity-100', 'translate-y-0');
-                t.classList.add('opacity-0', '-translate-y-4');
-            }, 3000);
-        }
-
-        document.getElementById('btn-logout-header').onclick = () => signOut(auth).then(() => window.location.href = "index.html");
-        lucide.createIcons();
-    </script>
+    <script type="module" src="./js/shop.js"></script>
 </body>
 </html>
