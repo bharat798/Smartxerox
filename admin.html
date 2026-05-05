@@ -272,10 +272,12 @@
         import { signInAnonymously, onAuthStateChanged, signOut, createUserWithEmailAndPassword } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-auth.js";
         import { doc, getDoc, setDoc, collection, onSnapshot, deleteDoc } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js";
 
-        // 🟢 LIVE DOMAIN SETUP (For QR Code Generation) 🟢
-        // IMPORTANT: Ye link hamesha live website ka hi QR code banayega.
-        // Ise aap apni actual Firebase hosting ya custom domain ki link bana lijiye.
-        const LIVE_BASE_URL = "https://smart-xerox.web.app"; 
+        // 🟢 DYNAMIC DOMAIN SETUP (For Auto QR Code Generation) 🟢
+        // Automatically fetches your live GitHub URL or domain URL based on where the app is running.
+        const getBaseUrl = () => {
+            const url = window.location.origin + window.location.pathname;
+            return url.substring(0, url.lastIndexOf('/'));
+        };
 
         const appId = typeof __app_id !== 'undefined' ? __app_id : 'default-app-id';
         let allShops = [];
@@ -469,7 +471,7 @@
             
             const qrContainer = document.getElementById('qr-container');
             qrContainer.innerHTML = "";
-            const shopUrl = `${LIVE_BASE_URL}/customer.html?shop=${shopId}`;
+            const shopUrl = `${getBaseUrl()}/customer.html?shop=${shopId}`;
             new QRCode(qrContainer, { text: shopUrl, width: 180, height: 180 });
             
             document.getElementById('cred-modal').classList.remove('hidden');
@@ -525,8 +527,8 @@
                 const qrContainer = document.getElementById('qr-container');
                 qrContainer.innerHTML = "";
                 
-                // Generate QR using the LIVE_BASE_URL
-                const shopUrl = `${LIVE_BASE_URL}/customer.html?shop=${shopId}`;
+                // Generate QR using Dynamic Base URL
+                const shopUrl = `${getBaseUrl()}/customer.html?shop=${shopId}`;
                 new QRCode(qrContainer, { text: shopUrl, width: 180, height: 180 });
                 
                 document.getElementById('cred-modal').classList.remove('hidden');
