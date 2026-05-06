@@ -390,7 +390,7 @@ window.downloadShopQR = () => {
 };
 
 // ==========================================
-// 4. REAL-TIME QUEUE LISTENER
+// 4. REAL-TIME QUEUE LISTENER (FIXED STORAGE DELETION)
 // ==========================================
 function startListeningToQueue() {
     const q = collection(db, 'artifacts', appId, 'public', 'data', 'prints');
@@ -404,20 +404,33 @@ function startListeningToQueue() {
             data.id = docSnap.id;
             if (data.shopId !== currentShopId) return;
 
-            // Auto-Delete logic
+            // 🟢 SOLID AUTO-DELETE LOGIC 🟢
             if (data.expiresAt && now > data.expiresAt && !data.fileDeleted) {
-                if (data.files && Array.isArray(data.files)) {
-                    data.files.forEach(f => {
-                        if (f.filePath) deleteObject(ref(storage, f.filePath)).catch(() => {});
-                    });
-                } else if (data.filePath) {
-                    deleteObject(ref(storage, data.filePath)).catch(() => {});
-                }
-                
-                updateDoc(doc(db, 'artifacts', appId, 'public', 'data', 'prints', data.id), { 
-                    fileDeleted: true
-                });
-                return;
+                // Async block to ensure storage deletion completes before database updates
+                (async () => {
+                    try {
+                        let deletePromises = [];
+                        if (data.files && Array.isArray(data.files)) {
+                            data.files.forEach(f => {
+                                if (f.filePath) {
+                                    deletePromises.push(deleteObject(ref(storage, f.filePath)).catch(e => console.error("Storage delete issue:", e)));
+                                }
+                            });
+                        }
+                        
+                        // Wait for ALL files to be deleted from Firebase Storage
+                        await Promise.all(deletePromises);
+                        
+                        // Only update Database AFTER storage is cleared
+                        await updateDoc(doc(db, 'artifacts', appId, 'public', 'data', 'prints', data.id), { 
+                            fileDeleted: true
+                        });
+                        console.log(`Auto-Deleted Storage Files for Job: #${data.token}`);
+                    } catch (err) {
+                        console.error("Auto delete failed", err);
+                    }
+                })();
+                return; // Skip rendering this as active queue since it's expiring
             }
             
             allJobs.push(data);
@@ -706,7 +719,7 @@ window.saveShopRates = async () => {
 };
 
 // ==========================================
-// 8. MODALS & UTILS
+// 8. MODALS & UTILS (FIXED MANUAL DELETION)
 // ==========================================
 window.askDelete = (id, path, isDoneRecord) => {
     deleteContext = { id, path, isDoneRecord };
@@ -726,26 +739,38 @@ window.closeConfirm = () => {
 document.getElementById('btn-confirm-delete').onclick = async () => {
     if (!deleteContext) return;
     const { id, isDoneRecord } = deleteContext;
+    const btn = document.getElementById('btn-confirm-delete');
+    const originalText = btn.innerHTML;
+    
+    btn.innerHTML = "Deleting...";
+    btn.disabled = true;
+
     try {
         const job = allJobs.find(x => x.id === id);
         if (job) {
+            let manualDeletePromises = [];
             if (job.files && Array.isArray(job.files)) {
-                for (let f of job.files) {
-                    if (f.filePath) await deleteObject(ref(storage, f.filePath)).catch(() => {});
-                }
-            } else if (job.filePath) {
-                await deleteObject(ref(storage, job.filePath)).catch(() => {});
+                job.files.forEach(f => {
+                    if (f.filePath) manualDeletePromises.push(deleteObject(ref(storage, f.filePath)).catch(e => console.error(e)));
+                });
             }
+            await Promise.all(manualDeletePromises); // Wait for storage deletion
         }
         
         if (isDoneRecord) {
             await updateDoc(doc(db, 'artifacts', appId, 'public', 'data', 'prints', id), { fileDeleted: true });
-            window.showToast("Files deleted. Transaction record saved.");
+            window.showToast("Files deleted from Storage. Record Saved.");
         } else {
             await deleteDoc(doc(db, 'artifacts', appId, 'public', 'data', 'prints', id));
             window.showToast("Order removed successfully.");
         }
-    } catch(e) { console.error(e); }
+    } catch(e) { 
+        console.error(e); 
+        window.showToast("Error deleting files.", "error");
+    }
+    
+    btn.innerHTML = originalText;
+    btn.disabled = false;
     window.closeConfirm();
 };
 
