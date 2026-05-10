@@ -85,12 +85,12 @@
 
         <!-- Dropzone -->
         <div id="dropzone" class="bg-white rounded-[2.5rem] border-4 border-dashed border-slate-200 p-8 sm:p-16 text-center relative cursor-pointer hover:border-blue-400 hover:bg-blue-50/30 transition-all group shadow-sm">
-            <input type="file" id="file-input" multiple class="absolute inset-0 opacity-0 cursor-pointer z-10" accept=".pdf,.jpg,.jpeg,.png">
+            <input type="file" id="file-input" multiple class="absolute inset-0 opacity-0 cursor-pointer z-10" accept=".pdf,.jpg,.jpeg,.png,.doc,.docx">
             <div class="w-20 h-20 sm:w-24 sm:h-24 bg-blue-50 text-blue-600 rounded-[2rem] flex items-center justify-center mx-auto mb-5 group-hover:scale-110 transition-transform">
                 <i data-lucide="cloud-upload" class="w-10 h-10 sm:w-12 sm:h-12"></i>
             </div>
             <h3 class="font-black text-xl sm:text-2xl text-slate-800">Upload Documents</h3>
-            <p class="text-xs sm:text-sm text-slate-400 mt-2 font-medium">Please select PDF or Image files.</p>
+            <p class="text-xs sm:text-sm text-slate-400 mt-2 font-medium" id="upload-limit-text">You can select multiple files up to 300MB.</p>
         </div>
 
         <!-- File Cards Container -->
@@ -118,6 +118,27 @@
             </div>
         </div>
     </main>
+
+    <!-- 🟢 NEW: Live Upload Progress Modal 🟢 -->
+    <div id="progress-modal" class="fixed inset-0 bg-slate-900/95 backdrop-blur-md z-[60] hidden flex items-center justify-center p-4">
+        <div class="bg-white rounded-[3rem] shadow-2xl max-w-sm w-full p-8 sm:p-10 text-center modal-animate border border-slate-100">
+            <div class="w-24 h-24 bg-blue-50 text-blue-600 rounded-full flex items-center justify-center mx-auto mb-6 relative">
+                <i data-lucide="cloud-upload" class="w-10 h-10 relative z-10 animate-bounce"></i>
+                <!-- SVG Circular Progress Bar -->
+                <svg class="absolute inset-0 w-full h-full transform -rotate-90" viewBox="0 0 100 100">
+                    <circle cx="50" cy="50" r="45" fill="none" stroke="#eff6ff" stroke-width="8"></circle>
+                    <circle id="progress-circle" cx="50" cy="50" r="45" fill="none" stroke="#3b82f6" stroke-width="8" stroke-dasharray="283" stroke-dashoffset="283" class="transition-all duration-300 ease-out"></circle>
+                </svg>
+            </div>
+            <h2 class="text-xl font-black text-slate-900 mb-2">Uploading Files...</h2>
+            <p id="progress-text" class="text-blue-600 font-black text-4xl mb-1 tracking-tighter">0%</p>
+            <p id="progress-size" class="text-slate-500 text-xs font-bold uppercase tracking-widest mb-6">0 MB / 0 MB</p>
+            
+            <div class="bg-amber-50 text-amber-700 text-[11px] font-bold p-4 rounded-2xl border border-amber-100">
+                <i data-lucide="alert-circle" class="w-4 h-4 inline-block mb-0.5 mr-1"></i> Please do not close or refresh this page.
+            </div>
+        </div>
+    </div>
 
     <!-- Success Modal -->
     <div id="success-modal" class="fixed inset-0 bg-slate-900/95 backdrop-blur-md z-50 hidden flex items-center justify-center p-4">
@@ -150,25 +171,22 @@
         import { doc, getDoc, collection, addDoc, runTransaction, serverTimestamp } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js";
         import { ref, uploadBytesResumable, getDownloadURL } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-storage.js";
 
-        // APP CONFIG & STATE
         const appId = typeof __app_id !== 'undefined' ? __app_id : 'default-app-id';
         let user = null;
         let currentShopId = new URLSearchParams(window.location.search).get('shop');
         
-        // Shop Rates with Bulk Tiers
         let shopRates = { 
             bwRate: 2.0, bwRateBulk: 1.5,
             colorRate: 10.0, colorRateBulk: 8.0,
             tierThreshold: 3 
         };
 
-        let globalSettings = { maxFileSize: 25, autoDeleteHours: 3 };
+        // 🟢 HEAVY UPLOAD SETTINGS (300MB) 🟢
+        let globalSettings = { maxFileSize: 300, autoDeleteHours: 3 }; 
         let selectedFiles = [];
 
-        // PDF.js setup
         pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.4.120/pdf.worker.min.js';
 
-        // 1. AUTHENTICATION & SHOP INIT
         onAuthStateChanged(auth, async (u) => {
             if (!u) {
                 if (typeof __initial_auth_token !== 'undefined' && __initial_auth_token) {
@@ -186,11 +204,14 @@
             if (!currentShopId) { toggleState('invalid'); return; }
 
             try {
-                // Settings load
                 const configSnap = await getDoc(doc(db, 'artifacts', appId, 'public', 'data', 'settings', 'global'));
-                if(configSnap.exists()) globalSettings = { ...globalSettings, ...configSnap.data() };
+                if(configSnap.exists()) {
+                    globalSettings = { ...globalSettings, ...configSnap.data() };
+                }
+                
+                // Update UI text with actual limit
+                document.getElementById('upload-limit-text').textContent = `You can select files up to ${globalSettings.maxFileSize}MB.`;
 
-                // Shop rates load
                 const paths = [
                     doc(db, 'artifacts', appId, 'public', 'data', 'shops', currentShopId),
                     doc(db, 'shops', currentShopId)
@@ -207,7 +228,6 @@
                     document.getElementById('display-shop-name').textContent = shopData.shopName;
                     document.getElementById('display-shop-address').textContent = shopData.address || "Authorized Partner";
                     
-                    // Sync real rates
                     shopRates = {
                         bwRate: parseFloat(shopData.bwRate) || 2.0,
                         bwRateBulk: parseFloat(shopData.bwRateBulk) || 1.5,
@@ -234,19 +254,24 @@
             lucide.createIcons();
         }
 
-        // 2. REAL PDF PAGE COUNTING ENGINE
+        // 🟢 SMART VIRTUAL PDF PAGE COUNTING ENGINE (Saves RAM, Prevents Hang) 🟢
         async function countPdfPages(file) {
+            let fileUrl = "";
             try {
-                const arrayBuffer = await file.arrayBuffer();
-                const pdf = await pdfjsLib.getDocument({ data: arrayBuffer }).promise;
+                // Creates a virtual memory link instead of loading full file into RAM
+                fileUrl = URL.createObjectURL(file);
+                const loadingTask = pdfjsLib.getDocument(fileUrl);
+                const pdf = await loadingTask.promise;
                 return pdf.numPages;
             } catch (e) {
                 console.error("PDF counting failed:", e);
-                return 1;
+                return 1; // Fallback
+            } finally {
+                // Free up virtual memory instantly
+                if (fileUrl) { URL.revokeObjectURL(fileUrl); }
             }
         }
 
-        // 3. FILE HANDLING LOGIC
         const fileInput = document.getElementById('file-input');
         const dropzone = document.getElementById('dropzone');
 
@@ -266,25 +291,20 @@
         async function handleFiles(files) {
             for (const file of files) {
                 if (file.size > globalSettings.maxFileSize * 1024 * 1024) {
-                    window.showPopup("File Limit", `${file.name} exceeds the ${globalSettings.maxFileSize}MB limit.`, "error");
+                    window.showPopup("File Limit Exceeded", `${file.name} is larger than the ${globalSettings.maxFileSize}MB limit.`, "error");
                     continue;
                 }
 
-                // 🟢 NEW: Block Word Documents Professionally 🟢
                 const fileNameLower = file.name.toLowerCase();
-                if (fileNameLower.endsWith('.doc') || fileNameLower.endsWith('.docx')) {
-                    window.showPopup(
-                        "Format Not Supported", 
-                        "Please convert your Word file to PDF before uploading. This ensures accurate page counting and prevents formatting issues during printing.", 
-                        "error"
-                    );
-                    continue;
-                }
+                const isWord = fileNameLower.endsWith('.doc') || fileNameLower.endsWith('.docx');
 
-                // Page Counting logic
                 let pages = 1;
                 if (fileNameLower.endsWith('.pdf')) {
+                    // Quick RAM-Safe Page Counting
                     pages = await countPdfPages(file);
+                } else if (isWord) {
+                    // Skip page counting for Word Documents
+                    pages = '-';
                 }
 
                 selectedFiles.push({
@@ -293,14 +313,14 @@
                     fileName: file.name,
                     pages: pages,
                     settings: { colorMode: 'bw', copies: 1 },
-                    price: 0
+                    price: 0,
+                    isWord: isWord
                 });
             }
             renderFileList();
             fileInput.value = '';
         }
 
-        // TIERED PRICING ENGINE WITH COPIES
         function calculatePrice(pages, mode, copies = 1) {
             const threshold = shopRates.tierThreshold;
             const isStandard = pages <= threshold;
@@ -316,7 +336,13 @@
             let totalOrderPrice = 0;
 
             selectedFiles.forEach((f) => {
-                f.price = calculatePrice(f.pages, f.settings.colorMode, f.settings.copies);
+                // Determine price
+                if (f.isWord) {
+                    f.price = 0; // Skip pricing for Word files
+                } else {
+                    f.price = calculatePrice(f.pages, f.settings.colorMode, f.settings.copies);
+                }
+                
                 totalOrderPrice += f.price;
 
                 const card = document.createElement('div');
@@ -329,6 +355,7 @@
                         </div>
                         <div class="flex items-center gap-2 sm:gap-3 pl-8 md:pl-0">
                              <span class="text-[9px] sm:text-[10px] font-black text-slate-400 uppercase tracking-widest bg-slate-50 px-2 py-0.5 rounded border border-slate-100">${f.pages} Pages</span>
+                             <span class="text-[9px] sm:text-[10px] font-black text-slate-400 uppercase tracking-widest bg-slate-50 px-2 py-0.5 rounded border border-slate-100">${(f.fileData.size / (1024*1024)).toFixed(1)} MB</span>
                              <div class="h-1 w-1 rounded-full bg-slate-300"></div>
                              <p class="text-xs sm:text-sm font-black text-emerald-600">₹${f.price.toFixed(2)}</p>
                         </div>
@@ -357,14 +384,12 @@
             const hasFiles = selectedFiles.length > 0;
             document.getElementById('summary-bar').classList.toggle('hidden', !hasFiles);
             
-            // Show notes section only if files are uploaded
             const notesSec = document.getElementById('notes-section');
             if(notesSec) notesSec.classList.toggle('hidden', !hasFiles);
 
             document.getElementById('order-total').textContent = totalOrderPrice.toFixed(2);
             lucide.createIcons();
             
-            // Auto scroll to bottom if needed on mobile to show the summary bar pops up
             if (hasFiles && window.innerWidth < 640) {
                  window.scrollTo({ top: document.body.scrollHeight, behavior: 'smooth' });
             }
@@ -389,7 +414,6 @@
             renderFileList();
         };
 
-        // 4. TRANSACTIONAL TOKEN LOGIC
         async function getNextToken() {
             const today = new Date().toISOString().split('T')[0];
             const counterRef = doc(db, 'artifacts', appId, 'public', 'data', 'counters', `${currentShopId}_${today}`);
@@ -408,35 +432,79 @@
             } catch (e) { return Math.floor(Math.random() * 900) + 100; }
         }
 
-        // 5. PARALLEL SUBMISSION ENGINE
+        // 🟢 ADVANCED UPLOAD ENGINE WITH LIVE PROGRESS 🟢
         const btnSubmit = document.getElementById('btn-submit');
         btnSubmit.onclick = async () => {
             if (!user || selectedFiles.length === 0) return;
 
-            btnSubmit.innerHTML = `<i data-lucide="loader-2" class="w-4 h-4 sm:w-5 sm:h-5 animate-spin"></i> Processing...`; 
-            btnSubmit.disabled = true;
+            // Show UI Loader overlay immediately
+            const progressModal = document.getElementById('progress-modal');
+            const progressText = document.getElementById('progress-text');
+            const progressSize = document.getElementById('progress-size');
+            const progressCircle = document.getElementById('progress-circle');
+            
+            progressModal.classList.remove('hidden');
             lucide.createIcons();
 
             try {
                 const tokenNum = await getNextToken();
 
-                // UPLOAD ALL FILES IN PARALLEL
-                const uploadPromises = selectedFiles.map(async (fObj) => {
-                    const uniqueSuffix = Date.now() + '-' + Math.round(Math.random() * 1E9);
-                    const cleanName = fObj.fileName.replace(/[^a-z0-9.]/gi, '_').toLowerCase();
-                    const storagePath = `uploads/${currentShopId}/${uniqueSuffix}_${cleanName}`;
-                    const storageRef = ref(storage, storagePath);
+                // Calculate Total Upload Size in Bytes
+                const totalBytes = selectedFiles.reduce((acc, file) => acc + file.fileData.size, 0);
+                const totalMbStr = (totalBytes / (1024 * 1024)).toFixed(1);
+                
+                // Track bytes uploaded per file to get an accurate total sum
+                let uploadedBytesMap = new Array(selectedFiles.length).fill(0);
 
-                    const snapshot = await uploadBytesResumable(storageRef, fObj.fileData);
-                    const downloadUrl = await getDownloadURL(snapshot.ref);
-                    
-                    return {
-                        fileName: fObj.fileName, fileUrl: downloadUrl,
-                        filePath: storagePath, pages: fObj.pages,
-                        price: fObj.price, settings: fObj.settings
-                    };
+                const uploadPromises = selectedFiles.map((fObj, index) => {
+                    return new Promise((resolve, reject) => {
+                        const uniqueSuffix = Date.now() + '-' + Math.round(Math.random() * 1E9);
+                        const cleanName = fObj.fileName.replace(/[^a-z0-9.]/gi, '_').toLowerCase();
+                        const storagePath = `uploads/${currentShopId}/${uniqueSuffix}_${cleanName}`;
+                        const storageRef = ref(storage, storagePath);
+
+                        // Resumable Task makes sure large files aren't broken by small network drops
+                        const uploadTask = uploadBytesResumable(storageRef, fObj.fileData);
+
+                        uploadTask.on('state_changed', 
+                            (snapshot) => {
+                                // Update bytes for this specific file in array
+                                uploadedBytesMap[index] = snapshot.bytesTransferred;
+                                
+                                // Sum all active uploads
+                                const totalUploadedBytes = uploadedBytesMap.reduce((a, b) => a + b, 0);
+                                
+                                // Calculate % Progress safely
+                                let percentage = Math.round((totalUploadedBytes / totalBytes) * 100);
+                                if (percentage > 100) percentage = 100;
+                                
+                                // Update Text UI
+                                progressText.textContent = `${percentage}%`;
+                                const currentMbStr = (totalUploadedBytes / (1024 * 1024)).toFixed(1);
+                                progressSize.textContent = `${currentMbStr} MB / ${totalMbStr} MB`;
+                                
+                                // Update Circular SVG (Stroke-dasharray is 283)
+                                const offset = 283 - (283 * percentage / 100);
+                                progressCircle.style.strokeDashoffset = offset;
+                            }, 
+                            (error) => {
+                                console.error("Upload Error:", error);
+                                reject(error);
+                            }, 
+                            async () => {
+                                // Upload complete for this specific file
+                                const downloadUrl = await getDownloadURL(uploadTask.snapshot.ref);
+                                resolve({
+                                    fileName: fObj.fileName, fileUrl: downloadUrl,
+                                    filePath: storagePath, pages: fObj.pages,
+                                    price: fObj.price, settings: fObj.settings
+                                });
+                            }
+                        );
+                    });
                 });
 
+                // Wait for ALL files to finish uploading
                 const uploadedFilesData = await Promise.all(uploadPromises);
 
                 const orderData = {
@@ -451,15 +519,15 @@
 
                 await addDoc(collection(db, 'artifacts', appId, 'public', 'data', 'prints'), orderData);
 
+                // Hide Progress Overlay & Show Success Modal
+                progressModal.classList.add('hidden');
                 document.getElementById('final-token').textContent = `#${tokenNum}`;
                 document.getElementById('success-modal').classList.remove('hidden');
                 
             } catch (e) { 
                 console.error(e);
-                window.showPopup("Error", "Failed to submit order. Please check your internet connection.", "error"); 
-                btnSubmit.innerHTML = `Send Order <i data-lucide="send" class="w-4 h-4 sm:w-5 sm:h-5"></i>`; 
-                btnSubmit.disabled = false; 
-                lucide.createIcons();
+                progressModal.classList.add('hidden');
+                window.showPopup("Upload Failed", "Connection interrupted. Please try again with a better internet connection.", "error"); 
             }
         };
 
