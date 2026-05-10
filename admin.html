@@ -545,8 +545,13 @@
             });
             
             let sysPrints = 0;
-            allAnalytics.forEach(a => { sysPrints += (a.totalTokens||0); });
+            let sysRev = 0;
+            allAnalytics.forEach(a => { 
+                sysPrints += (a.totalTokens||0); 
+                sysRev += (a.revenue||0);
+            });
             document.getElementById('stat-prints').textContent = sysPrints;
+            document.getElementById('stat-revenue').textContent = sysRev.toFixed(0);
             renderDirectory(); 
         }
 
@@ -559,10 +564,6 @@
                     allPayments.push(item);
                 }
             });
-            
-            let totalAdminRev = 0;
-            allShops.forEach(s => { totalAdminRev += (s.subTotalPaid || 0); });
-            document.getElementById('stat-revenue').textContent = totalAdminRev.toFixed(0);
         }
 
         onAuthStateChanged(auth, async (user) => {
