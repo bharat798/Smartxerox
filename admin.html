@@ -351,6 +351,48 @@
         </div>
     </main>
 
+    <!-- NEW: EDIT SHOP MODAL -->
+    <div id="edit-shop-modal" class="fixed inset-0 bg-slate-900/80 backdrop-blur-sm z-[110] hidden flex items-center justify-center p-4">
+        <div class="bg-white rounded-[2.5rem] shadow-2xl max-w-md w-full p-8 modal-animate max-h-[90vh] overflow-y-auto">
+            <div class="flex items-center justify-between mb-6 border-b border-slate-100 pb-4">
+                <h3 class="text-xl font-black text-slate-800">Edit Shop Profile</h3>
+                <button type="button" onclick="document.getElementById('edit-shop-modal').classList.add('hidden')" class="text-slate-400 hover:text-red-500"><i data-lucide="x" class="w-5 h-5"></i></button>
+            </div>
+            
+            <form id="edit-shop-form" class="space-y-5">
+                <input type="hidden" id="e-shop-id">
+
+                <div>
+                    <label class="block text-[10px] font-black text-slate-400 uppercase mb-2 tracking-widest">Shop Name</label>
+                    <input type="text" id="e-shop-name" required class="w-full bg-slate-50 border border-slate-200 rounded-2xl px-5 py-4 font-bold outline-none focus:ring-2 focus:ring-blue-500 text-slate-800">
+                </div>
+
+                <div>
+                    <label class="block text-[10px] font-black text-slate-400 uppercase mb-2 tracking-widest">Owner Name</label>
+                    <input type="text" id="e-owner-name" required class="w-full bg-slate-50 border border-slate-200 rounded-2xl px-5 py-4 font-bold outline-none focus:ring-2 focus:ring-blue-500 text-slate-800">
+                </div>
+
+                <div>
+                    <label class="block text-[10px] font-black text-slate-400 uppercase mb-2 tracking-widest">Phone Number</label>
+                    <input type="tel" id="e-phone" required class="w-full bg-slate-50 border border-slate-200 rounded-2xl px-5 py-4 font-bold outline-none focus:ring-2 focus:ring-blue-500 text-slate-800">
+                </div>
+
+                <div>
+                    <label class="block text-[10px] font-black text-slate-400 uppercase mb-2 tracking-widest">Address</label>
+                    <input type="text" id="e-address" required class="w-full bg-slate-50 border border-slate-200 rounded-2xl px-5 py-4 font-bold outline-none focus:ring-2 focus:ring-blue-500 text-slate-800">
+                </div>
+
+                <div class="pt-4 border-t border-slate-100">
+                    <label class="block text-[10px] font-black text-slate-400 uppercase mb-2 tracking-widest">Auto-Delete Timer (Hours)</label>
+                    <input type="number" id="e-auto-delete" placeholder="Global default will apply" class="w-full bg-slate-50 border border-slate-200 rounded-2xl px-5 py-4 font-bold outline-none focus:ring-2 focus:ring-blue-500 text-slate-800">
+                    <p class="text-[10px] font-bold text-slate-400 mt-2 leading-tight">Khali chhodne par Global Default Settings apply hongi.</p>
+                </div>
+
+                <button type="submit" id="btn-save-edit" class="w-full bg-blue-600 hover:bg-blue-700 text-white font-black py-4 rounded-2xl shadow-xl active:scale-95 transition-all mt-4">Save Changes</button>
+            </form>
+        </div>
+    </div>
+
     <!-- UPDATE PAYMENT/BILLING MODAL -->
     <div id="billing-modal" class="fixed inset-0 bg-slate-900/80 backdrop-blur-sm z-[110] hidden flex items-center justify-center p-4">
         <div class="bg-white rounded-[2.5rem] shadow-2xl max-w-sm w-full p-8 modal-animate">
@@ -423,11 +465,11 @@
     <script type="module">
         import { auth, db, secondaryAuth } from './js/firebase-init.js';
         import { signInAnonymously, onAuthStateChanged, signOut, createUserWithEmailAndPassword } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-auth.js";
-        import { doc, getDoc, setDoc, collection, onSnapshot, deleteDoc, updateDoc, addDoc } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js";
+        import { doc, getDoc, setDoc, collection, onSnapshot, deleteDoc, updateDoc } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js";
 
         const getBaseUrl = () => {
             const isLocal = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1';
-            if (isLocal) { return "https://smart-xerox-app.web.app"; } // Change this to your live domain
+            if (isLocal) { return "https://smart-xerox-app.web.app"; }
             return window.location.origin + window.location.pathname.substring(0, window.location.pathname.lastIndexOf('/'));
         };
 
@@ -492,7 +534,6 @@
             renderBilling(); 
         }
 
-        // 🟢 FIX: CALCULATE ONLY PRINT REVENUE FOR GLOBAL DASHBOARD 🟢
         function syncAnalytics(newList) {
             newList.forEach(item => {
                 const existingIndex = allAnalytics.findIndex(x => x.shopId === item.shopId && x.date === item.date);
@@ -503,16 +544,9 @@
                 }
             });
             
-            let sysRev = 0, sysPrints = 0;
-            allAnalytics.forEach(a => { 
-                sysRev += (a.revenue||0); 
-                sysPrints += (a.totalTokens||0); 
-            });
-            
-            // Ye Sirf customers ka diya hua Print Revenue dikhayega
-            document.getElementById('stat-revenue').textContent = sysRev.toFixed(0);
+            let sysPrints = 0;
+            allAnalytics.forEach(a => { sysPrints += (a.totalTokens||0); });
             document.getElementById('stat-prints').textContent = sysPrints;
-            
             renderDirectory(); 
         }
 
@@ -525,6 +559,10 @@
                     allPayments.push(item);
                 }
             });
+            
+            let totalAdminRev = 0;
+            allShops.forEach(s => { totalAdminRev += (s.subTotalPaid || 0); });
+            document.getElementById('stat-revenue').textContent = totalAdminRev.toFixed(0);
         }
 
         onAuthStateChanged(auth, async (user) => {
@@ -569,6 +607,9 @@
                     </td>
                     <td class="px-8 py-5 font-mono text-xs font-bold text-slate-500">${s.id}</td>
                     <td class="px-8 py-5 text-right flex items-center justify-end gap-3">
+                        <button onclick="event.stopPropagation(); window.openEditShopModal('${s.id}')" class="p-2 bg-amber-50 text-amber-600 rounded-lg hover:bg-amber-600 hover:text-white transition-colors z-10" title="Edit Shop Details">
+                            <i data-lucide="edit" class="w-4 h-4"></i>
+                        </button>
                         <button onclick="event.stopPropagation(); window.viewShopQR('${s.id}')" class="p-2 bg-blue-50 text-blue-600 rounded-lg hover:bg-blue-600 hover:text-white transition-colors z-10" title="View QR Code">
                             <i data-lucide="qr-code" class="w-4 h-4"></i>
                         </button>
@@ -660,7 +701,6 @@
             document.getElementById('billing-modal').classList.remove('hidden');
         };
 
-        // 🟢 FIX: Expiry Calculation for New Payments & Corrections 🟢
         document.getElementById('billing-form').onsubmit = async (e) => {
             e.preventDefault();
             const btn = document.getElementById('btn-save-billing');
@@ -677,18 +717,10 @@
             if(plan === 'Yearly') extraDays = 365;
             if(plan === 'Lifetime') extraDays = 36500; 
 
-            // Find current shop data
-            let shopObj = allShops.find(s => s.id === shopId);
-            
-            // Calculate Expiry Date dynamically
-            let currentExpiry = shopObj?.subExpiry || Date.now();
-            if (currentExpiry < Date.now()) currentExpiry = Date.now(); // Agar pehle se expire ho chuka hai, to aaj se ginenge
-
-            const newExpiry = currentExpiry + (extraDays * 24 * 60 * 60 * 1000);
-
             try {
-                const prevTotal = shopObj.subTotalPaid || 0;
-                const lastAmount = shopObj.subLastAmount || 0;
+                const shop = allShops.find(s => s.id === shopId);
+                const prevTotal = shop.subTotalPaid || 0;
+                const lastAmount = shop.subLastAmount || 0;
 
                 let newTotalPaid = prevTotal;
                 if (actionType === 'add') newTotalPaid += amount;
@@ -696,6 +728,10 @@
                     newTotalPaid = (prevTotal - lastAmount) + amount;
                     if (newTotalPaid < 0) newTotalPaid = amount;
                 }
+                
+                let currentExpiry = shop?.subExpiry || Date.now();
+                if (currentExpiry < Date.now()) currentExpiry = Date.now();
+                const newExpiry = currentExpiry + (extraDays * 24 * 60 * 60 * 1000);
 
                 const updateData = {
                     subPlan: plan,
@@ -711,7 +747,6 @@
                     date: Date.now(), expiry: newExpiry
                 };
 
-                // Store Data
                 await setDoc(doc(db, 'artifacts', appId, 'public', 'data', 'shops', shopId), updateData, { merge: true }).catch(()=>{});
                 await setDoc(doc(db, 'shops', shopId), updateData, { merge: true }).catch(()=>{});
                 
@@ -768,28 +803,9 @@
             document.getElementById('bill-detail-shop-id').textContent = `ID: ${shop.id}`;
             document.getElementById('bill-detail-owner-name').textContent = shop.ownerName || 'N/A';
             document.getElementById('bill-detail-phone').textContent = shop.phone || 'N/A';
-            
-            if (!shop.subTotalPaid || shop.subTotalPaid === 0) {
-                 document.getElementById('bill-detail-plan').textContent = 'Unpaid';
-            } else {
-                 document.getElementById('bill-detail-plan').textContent = shop.subPlan || 'Unpaid';
-            }
-            
+            document.getElementById('bill-detail-plan').textContent = shop.subPlan || 'Unpaid';
             document.getElementById('bill-detail-total-paid').textContent = shop.subTotalPaid || 0;
             
-            if (shop.subExpiry && shop.subTotalPaid > 0) {
-                const dateStr = new Date(shop.subExpiry).toLocaleDateString('en-GB');
-                document.getElementById('bill-detail-sub-expiry').textContent = dateStr;
-                if (shop.subExpiry < Date.now()) {
-                    document.getElementById('bill-detail-sub-expiry').classList.add('text-red-500');
-                } else {
-                    document.getElementById('bill-detail-sub-expiry').classList.remove('text-red-500');
-                }
-            } else {
-                document.getElementById('bill-detail-sub-expiry').textContent = 'No Record';
-                document.getElementById('bill-detail-sub-expiry').classList.remove('text-red-500');
-            }
-
             const shopPayments = allPayments.filter(p => p.shopId === shopId);
             shopPayments.sort((a, b) => b.date - a.date); 
 
@@ -819,7 +835,47 @@
             switchView('billing-detail');
         };
 
-        // 🟢 FIX: Payment Delete Recalculation 🟢
+        window.openEditShopModal = (shopId) => {
+            const shop = allShops.find(s => s.id === shopId);
+            if(!shop) return;
+            document.getElementById('e-shop-id').value = shop.id;
+            document.getElementById('e-shop-name').value = shop.shopName || '';
+            document.getElementById('e-owner-name').value = shop.ownerName || '';
+            document.getElementById('e-phone').value = shop.phone || '';
+            document.getElementById('e-address').value = shop.address || '';
+            document.getElementById('e-auto-delete').value = shop.autoDeleteHours || '';
+            document.getElementById('edit-shop-modal').classList.remove('hidden');
+        };
+
+        document.getElementById('edit-shop-form').onsubmit = async (e) => {
+            e.preventDefault();
+            const btn = document.getElementById('btn-save-edit');
+            btn.innerHTML = "Saving..."; btn.disabled = true;
+
+            const shopId = document.getElementById('e-shop-id').value;
+            const autoDelVal = document.getElementById('e-auto-delete').value;
+
+            try {
+                const updateData = {
+                    shopName: document.getElementById('e-shop-name').value,
+                    ownerName: document.getElementById('e-owner-name').value,
+                    phone: document.getElementById('e-phone').value,
+                    address: document.getElementById('e-address').value,
+                    autoDeleteHours: autoDelVal ? Number(autoDelVal) : null
+                };
+
+                await updateDoc(doc(db, 'artifacts', appId, 'public', 'data', 'shops', shopId), updateData).catch(()=>{});
+                await updateDoc(doc(db, 'shops', shopId), updateData).catch(()=>{});
+                
+                showToast("Shop profile updated successfully!", "success");
+                document.getElementById('edit-shop-modal').classList.add('hidden');
+            } catch (err) {
+                showToast("Failed to update profile.", "error");
+            } finally {
+                btn.innerHTML = "Save Changes"; btn.disabled = false;
+            }
+        };
+
         window.deletePaymentRecord = async (paymentId, shopId, amount) => {
             if(confirm("Confirm Deletion? This will remove the payment record and deduct the amount from total fees.")) {
                 try {
@@ -827,27 +883,17 @@
                     if (shop) {
                         const newTotal = (shop.subTotalPaid || 0) - amount;
                         let updateData = {};
-                        
-                        if (newTotal <= 0) {
-                             // Agar fees 0 ho gayi, toh expiry details reset kardo
-                             updateData = { subTotalPaid: 0, subPlan: 'Unpaid', subExpiry: null };
+                        if(newTotal <= 0) {
+                            updateData = { subTotalPaid: 0, subPlan: 'Unpaid', subExpiry: null };
                         } else {
-                             // Agar kuch payments bache hain, to latest valid expiry dhoondho
-                             const remainingPayments = allPayments.filter(p => p.shopId === shopId && p.id !== paymentId);
-                             remainingPayments.sort((a, b) => b.expiry - a.expiry); // Sabse door wali expiry pehle
-                             
-                             if(remainingPayments.length > 0) {
-                                 const latestPayment = remainingPayments[0];
-                                 updateData = { 
-                                     subTotalPaid: newTotal,
-                                     subPlan: latestPayment.plan,
-                                     subExpiry: latestPayment.expiry
-                                 };
-                             } else {
-                                 updateData = { subTotalPaid: newTotal };
-                             }
+                            const remaining = allPayments.filter(p => p.shopId === shopId && p.id !== paymentId);
+                            remaining.sort((a, b) => b.expiry - a.expiry);
+                            if(remaining.length > 0) {
+                                updateData = { subTotalPaid: newTotal, subPlan: remaining[0].plan, subExpiry: remaining[0].expiry };
+                            } else {
+                                updateData = { subTotalPaid: newTotal };
+                            }
                         }
-                        
                         await updateDoc(doc(db, 'artifacts', appId, 'public', 'data', 'shops', shopId), updateData).catch(()=>{});
                         await updateDoc(doc(db, 'shops', shopId), updateData).catch(()=>{});
                         Object.assign(shop, updateData);
@@ -857,10 +903,8 @@
                     await deleteDoc(doc(db, 'shop_payments', paymentId)).catch(()=>{});
 
                     allPayments = allPayments.filter(p => p.id !== paymentId);
-                    
                     window.openBillingDetail(shopId);
                     renderBilling();
-
                     showToast("Payment entry removed successfully.", "success");
                 } catch (error) {
                     console.error("Deletion failed:", error);
