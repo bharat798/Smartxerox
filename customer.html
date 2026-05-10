@@ -90,7 +90,7 @@
                 <i data-lucide="cloud-upload" class="w-10 h-10 sm:w-12 sm:h-12"></i>
             </div>
             <h3 class="font-black text-xl sm:text-2xl text-slate-800">Upload Documents</h3>
-            <p class="text-xs sm:text-sm text-slate-400 mt-2 font-medium" id="upload-limit-text">You can select multiple files up to 300MB.</p>
+            <p class="text-xs sm:text-sm text-slate-400 mt-2 font-medium" id="upload-limit-text">You can select multiple files up to 500MB.</p>
         </div>
 
         <!-- File Cards Container -->
@@ -181,8 +181,8 @@
             tierThreshold: 3 
         };
 
-        // 🟢 HEAVY UPLOAD SETTINGS (300MB) 🟢
-        let globalSettings = { maxFileSize: 300, autoDeleteHours: 3 }; 
+        // 🟢 HEAVY UPLOAD SETTINGS (500MB) 🟢
+        let globalSettings = { maxFileSize: 500, autoDeleteHours: 3 }; 
         let selectedFiles = [];
 
         pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.4.120/pdf.worker.min.js';
