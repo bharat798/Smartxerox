@@ -473,14 +473,26 @@ function buildCard(j) {
     const timeStr = formatTime(j.createdAt);
     const statusCol = j.status === 'Pending' ? 'bg-yellow-400' : j.status === 'Printing' ? 'bg-blue-600' : 'bg-emerald-500';
     
+    let totalPages = 0;
     let filesHtml = "";
     if (j.files && Array.isArray(j.files)) {
-        filesHtml = j.files.map(f => {
+        filesHtml = j.files.map((f, index) => {
             // Clean filename for safety in JS call
             const safeFileName = f.fileName.replace(/'/g, "\\'");
+            
+            // Calculate total pages safely (ignoring '-' for Word files)
+            let p = parseInt(f.pages);
+            if (!isNaN(p)) totalPages += p;
+            
+            // Generate Sequence Number
+            const seq = index + 1;
+            
             return `
                 <div class="flex items-center gap-3 bg-slate-50 p-3 rounded-2xl border border-slate-100 mb-2 group/file">
-                    <div class="p-2 bg-white rounded-xl shadow-xs shrink-0"><i data-lucide="file-text" class="w-5 h-5 ${f.settings?.colorMode === 'color' ? 'text-purple-500' : 'text-blue-500'}"></i></div>
+                    <div class="px-3 py-2 bg-white rounded-xl shadow-xs shrink-0 flex items-center justify-center gap-2 border border-slate-100">
+                        <span class="text-[11px] font-black text-slate-400">#${seq}</span>
+                        <i data-lucide="file-text" class="w-4 h-4 ${f.settings?.colorMode === 'color' ? 'text-purple-500' : 'text-blue-500'}"></i>
+                    </div>
                     <div class="flex-1 min-w-0">
                         <p class="text-[13px] font-bold text-slate-700 truncate">${f.fileName}</p>
                         <p class="text-[10px] font-bold text-slate-400 uppercase tracking-tighter">${f.settings?.colorMode?.toUpperCase() || 'B&W'} • ${f.pages || 1} Pgs • ${f.settings?.copies || 1} Copies • ₹${f.price || 0}</p>
@@ -493,7 +505,12 @@ function buildCard(j) {
         }).join('');
     }
 
-    const priceBadge = `<div class="bg-emerald-500 text-white px-2.5 py-1.5 rounded-xl text-xs font-black shadow-sm">₹${j.billEstimate || 0}</div>`;
+    const priceBadge = `
+        <div class="flex items-center gap-2">
+            <div class="bg-emerald-500 text-white px-2.5 py-1.5 rounded-xl text-xs font-black shadow-sm">₹${j.billEstimate || 0}</div>
+            <div class="bg-blue-50 text-blue-600 border border-blue-100 px-2.5 py-1.5 rounded-xl text-xs font-black shadow-sm">${totalPages} Pages</div>
+        </div>
+    `;
 
     // SCHEDULED DELETION INFO
     let deletionHtml = "";
