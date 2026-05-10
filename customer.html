@@ -130,7 +130,7 @@
                     <circle id="progress-circle" cx="50" cy="50" r="45" fill="none" stroke="#3b82f6" stroke-width="8" stroke-dasharray="283" stroke-dashoffset="283" class="transition-all duration-300 ease-out"></circle>
                 </svg>
             </div>
-            <h2 class="text-xl font-black text-slate-900 mb-2">Uploading Files...</h2>
+            <h2 id="progress-title" class="text-xl font-black text-slate-900 mb-2">Uploading Files...</h2>
             <p id="progress-text" class="text-blue-600 font-black text-4xl mb-1 tracking-tighter">0%</p>
             <p id="progress-size" class="text-slate-500 text-xs font-bold uppercase tracking-widest mb-6">0 MB / 0 MB</p>
             
@@ -226,7 +226,8 @@
                 if (shopData) {
                     document.getElementById('ui-shop-name').textContent = shopData.shopName;
                     document.getElementById('display-shop-name').textContent = shopData.shopName;
-                    document.getElementById('display-shop-address').textContent = shopData.address || "Authorized Partner";
+                    // Yahan change kiya hai taaki address na ho toh shop ka naam aaye
+                    document.getElementById('display-shop-address').textContent = shopData.address || shopData.shopName;
                     
                     shopRates = {
                         bwRate: parseFloat(shopData.bwRate) || 2.0,
@@ -439,10 +440,12 @@
 
             // Show UI Loader overlay immediately
             const progressModal = document.getElementById('progress-modal');
+            const progressTitle = document.getElementById('progress-title');
             const progressText = document.getElementById('progress-text');
             const progressSize = document.getElementById('progress-size');
             const progressCircle = document.getElementById('progress-circle');
             
+            progressTitle.textContent = "Uploading Files...";
             progressModal.classList.remove('hidden');
             lucide.createIcons();
 
@@ -486,6 +489,11 @@
                                 // Update Circular SVG (Stroke-dasharray is 283)
                                 const offset = 283 - (283 * percentage / 100);
                                 progressCircle.style.strokeDashoffset = offset;
+
+                                // Show Finalizing status when upload reaches 100%
+                                if (percentage >= 100) {
+                                    progressTitle.textContent = "Finalizing Order...";
+                                }
                             }, 
                             (error) => {
                                 console.error("Upload Error:", error);
